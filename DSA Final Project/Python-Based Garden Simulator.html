@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Python-Based Garden Simulator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.26.1/full/pyodide.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #1e261c;
+            color: #f3f4f6;
+        }
+
+        .code-font {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .glass-panel {
+            background: rgba(40, 54, 35, 0.45);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(120, 143, 114, 0.2);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+        }
+    </style>
+</head>
+
+<body class="min-h-screen p-4 flex flex-col justify-between overflow-x-hidden">
+    <header
+        class="w-full max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4 pb-2 border-b border-[#43533c]/40">
+        <div>
+            <div class="flex items-center gap-2">
+                <h1 class="text-2xl font-extrabold tracking-tight text-emerald-100">Python-Based Garden Simulator</h1>
+                <span id="version-badge"
+                    class="text-[10px] font-bold uppercase tracking-widest text-emerald-400/90 bg-emerald-950/50 border border-emerald-800/60 px-2 py-0.5 rounded-full"></span>
+            </div>
+            <p class="text-xs text-emerald-300/80 font-medium">SDG 2, 13, 15</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <div class="glass-panel px-4 py-2 rounded-xl flex flex-col items-end">
+                <span class="text-[10px] text-emerald-400 uppercase tracking-widest font-bold">DAY</span>
+                <span class="text-lg font-extrabold text-white" id="day-counter">1</span>
+            </div>
+            <div class="glass-panel px-4 py-2 rounded-xl flex flex-col items-end">
+                <span class="text-[10px] text-emerald-400 uppercase tracking-widest font-bold">SCORE</span>
+                <span class="text-lg font-extrabold text-emerald-300" id="stewardship-counter">0%</span>
+            </div>
+        </div>
+    </header>
+    <main class="w-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-4 flex-grow">
+        <!-- LEFT: RESOURCES -->
+        <section id="resources-section" class="lg:col-span-3 glass-panel rounded-2xl p-4">
+            <h2
+                class="text-base font-bold text-emerald-200 border-b border-[#43533c]/30 pb-2 mb-4 flex items-center gap-2">
+                <i data-lucide="database" class="w-4 h-4 text-emerald-400"></i> Resource Storage
+            </h2>
+            <div class="space-y-4">
+                <div>
+                    <div class="flex justify-between text-xs font-semibold">
+                        <span class="flex items-center gap-1.5 text-blue-300">Water Reserves</span>
+                        <span id="water-text">0 / 200 L</span>
+                    </div>
+                    <div class="w-full bg-[#1b2219] h-2.5 rounded-full overflow-hidden">
+                        <div id="water-bar" class="bg-gradient-to-r from-blue-500 to-cyan-400 h-full rounded-full"
+                            style="width: 0%"></div>
+                    </div>
+                </div>
+                <div>
+                    <div class="flex justify-between text-xs font-semibold">
+                        <span class="flex items-center gap-1.5 text-emerald-300">Seed Inventory</span>
+                        <span id="seeds-text">0 / 100</span>
+                    </div>
+                    <div class="w-full bg-[#1b2219] h-2.5 rounded-full overflow-hidden">
+                        <div id="seeds-bar" class="bg-gradient-to-r from-emerald-500 to-lime-400 h-full rounded-full"
+                            style="width: 0%"></div>
+                    </div>
+                </div>
+                <div>
+                    <div class="flex justify-between text-xs font-semibold">
+                        <span class="flex items-center gap-1.5 text-amber-300">Solar Energy</span>
+                        <span id="energy-text">0 / 120 Wh</span>
+                    </div>
+                    <div class="w-full bg-[#1b2219] h-2.5 rounded-full overflow-hidden">
+                        <div id="energy-bar" class="bg-gradient-to-r from-amber-500 to-yellow-300 h-full rounded-full"
+                            style="width: 0%"></div>
+                    </div>
+                </div>
+                <div>
+                    <div class="flex justify-between text-xs font-semibold">
+                        <span class="flex items-center gap-1.5 text-rose-300">Community Hope</span>
+                        <span id="hope-text">0 / 100</span>
+                    </div>
+                    <div class="w-full bg-[#1b2219] h-2.5 rounded-full overflow-hidden">
+                        <div id="hope-bar" class="bg-gradient-to-r from-rose-500 to-pink-400 h-full rounded-full"
+                            style="width: 0%"></div>
+                    </div>
+                </div>
+                <div>
+                    <div class="flex justify-between text-xs font-semibold">
+                        <span class="flex items-center gap-1.5 text-yellow-200">Coins / Dues</span>
+                        <span id="coins-text" class="text-yellow-200">0 Coins</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <!-- CENTER -->
+        <section class="lg:col-span-6 flex flex-col gap-4">
+            <div class="flex bg-[#192218] p-1.5 rounded-xl border border-emerald-800/40 w-fit">
+                <button onclick="switchTab('game')" id="tab-game"
+                    class="px-4 py-1.5 rounded-lg text-xs font-bold bg-[#283623] text-emerald-100">Interactive
+                    Sanctuary</button>
+                <button onclick="switchTab('code')" id="tab-code"
+                    class="px-4 py-1.5 rounded-lg text-xs font-bold text-emerald-400/80 hover:text-emerald-100">Student
+                    Code Editor</button>
+            </div>
+
+            <div id="view-game" class="glass-panel rounded-2xl p-6 min-h-[380px]">
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h2 class="text-lg font-bold text-white">Sanctuary Garden Grid</h2>
+                        <p class="text-xs text-emerald-300">Click a tile to select it, then use the Topic 5 buttons below.</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs text-emerald-300">Seed Bag:</span>
+                        <select id="crop-selector"
+                            class="bg-[#1b2219] border border-emerald-700 text-emerald-100 text-sm rounded-xl px-3 py-2">
+                        </select>
+                    </div>
+                </div>
+                <div id="garden-grid" class="grid grid-cols-5 gap-3"></div>
+
+                <!-- Topic 5: Interactive 2D Grid & Tree Growth Simulator Panel -->
+                <div class="mt-6 p-4 bg-gray-900 rounded-xl border border-emerald-800 text-white shadow-lg">
+                    <h3 class="text-lg font-bold text-emerald-400 mb-2">🌳 Topic 5: Hierarchical Tree Growth & 2D Grid
+                        Simulator</h3>
+                    <div class="flex items-center space-x-6 mb-3 text-sm">
+                        <span>💰 Coins: <b id="t5-coins" class="text-amber-400">999</b>c</span>
+                        <span>🌱 Active Tile: <b id="t5-tile" class="text-emerald-300">None selected</b></span>
+                        <span>📈 Growth Stage: <b id="t5-stage" class="text-purple-300">Not Planted</b></span>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <button onclick="pyodideInstance.runPython('t5_plant_selected()')"
+                            class="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 rounded text-sm font-semibold transition">🌱
+                            Plant Seed (Selected Tile)</button>
+                        <button onclick="pyodideInstance.runPython('t5_water_selected()')"
+                            class="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 rounded text-sm font-semibold transition">💧
+                            Water Plant (Step DFS)</button>
+                        <button onclick="pyodideInstance.runPython('t5_harvest_selected()')"
+                            class="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 rounded text-sm font-semibold transition">🌾
+                            Harvest (2x Return)</button>
+                    </div>
+                    <div id="t5-log"
+                        class="mt-3 text-xs font-mono text-gray-300 bg-black/40 p-3 rounded border border-gray-800">
+                        <em>Instructions: Click a grid tile to select it, choose a flower from the Seed Bag dropdown
+                            above, then click 'Plant Seed'.</em>
+                    </div>
+                </div>
+            </div>
+
+            <div id="view-code" class="glass-panel rounded-2xl p-6 flex flex-col flex-grow hidden">
+                <h2 class="font-bold mb-3 flex items-center gap-2">
+                    <i data-lucide="code" class="w-5 h-5 text-emerald-400"></i> Student Code Editor (Lab)
+                </h2>
+                <select id="topic-selector" onchange="loadTopic()"
+                    class="w-full bg-[#1b2219] border border-emerald-700 rounded-xl p-3 mb-4 text-sm"></select>
+                <textarea id="code-editor"
+                    class="flex-1 bg-[#0a0f0a] border border-emerald-800 rounded-xl p-4 code-font text-sm font-medium leading-relaxed"
+                    spellcheck="false"></textarea>
+                <button onclick="runPythonCode()"
+                    class="mt-4 bg-emerald-600 hover:bg-emerald-500 py-3 rounded-xl font-bold text-white flex items-center justify-center gap-2">
+                    <i data-lucide="play" class="w-4 h-4"></i> Run Python Code
+                </button>
+                <div id="output-console"
+                    class="mt-4 bg-black/70 border border-emerald-900 rounded-xl p-4 text-xs max-h-48 overflow-auto font-mono whitespace-pre-wrap">
+                </div>
+            </div>
+        </section>
+        <!-- RIGHT PANEL -->
+        <section class="lg:col-span-3 flex flex-col gap-4">
+            <div id="climate-queue-panel" class="glass-panel rounded-2xl p-4">
+                <h3 class="font-bold text-emerald-400 mb-3 flex items-center gap-2">
+                    <i data-lucide="cloud-lightning" class="w-4 h-4"></i> Climate Queue (FIFO)
+                </h3>
+                <div id="climate-queue" class="space-y-3 text-sm"></div>
+            </div>
+            <div id="stack-panel" class="glass-panel rounded-2xl p-4 flex-1 flex flex-col">
+                <h3 class="font-bold text-emerald-400 mb-3 flex items-center gap-2">
+                    <i data-lucide="history" class="w-4 h-4"></i> Action History (Stack)
+                </h3>
+                <div id="action-stack" class="flex-1 space-y-2 text-sm overflow-auto"></div>
+                <button onclick="triggerUndo()"
+                    class="mt-4 w-full bg-[#2a3825] hover:bg-[#34462e] text-emerald-200 py-2.5 rounded-xl text-sm font-medium flex items-center justify-center gap-2 border border-emerald-800">
+                    <i data-lucide="undo-2" class="w-4 h-4"></i> Undo (Stack Pop)
+                </button>
+            </div>
+        </section>
+    </main>
+    <script>
+        const APP_VERSION = "0.3.2";
+
+        let pyodideInstance = null;
+        let gardenPlants = {};
+        let displayActionHistory = [];
+        let selectedPos = null;
+
+        // Base-template signature is addPlantToGrid(pos, name). Topic 4 passes
+        // an emoji as the name, so use it as the tile icon when no explicit
+        // emoji is given, instead of always showing a generic sprout.
+        function addPlantToGrid(pos, name, emoji) {
+            if (emoji === undefined || emoji === null) {
+                const firstChar = [...String(name)][0] || "";
+                emoji = /\p{Extended_Pictographic}/u.test(firstChar) ? firstChar : "🌱";
+            }
+            gardenPlants[pos] = { name, emoji };
+            renderGarden();
+        }
+
+        function clearGridTile(pos) {
+            delete gardenPlants[pos];
+            renderGarden();
+        }
+
+        function renderGarden() {
+            const grid = document.getElementById("garden-grid");
+            grid.innerHTML = "";
+
+            for (let i = 0; i < 25; i++) {
+                const cell = document.createElement("div");
+                const isSelected = (i === selectedPos);
+                cell.className = [
+                    "aspect-square rounded-xl flex items-center justify-center text-3xl",
+                    "cursor-pointer select-none transition-all duration-150",
+                    isSelected
+                        ? "bg-[#3d5133] border-2 border-amber-400 ring-2 ring-amber-400/40 scale-105"
+                        : "bg-[#2a3825] border border-emerald-800 hover:bg-[#34462e]"
+                ].join(" ");
+
+                const plant = gardenPlants[i];
+
+                if (plant) {
+                    cell.textContent = plant.emoji || "🌱";
+                    cell.title = `${plant.name} – click to select this tile`;
+                } else {
+                    cell.textContent = "⬜";
+                    cell.title = "Empty soil – click to select this tile";
+                }
+
+                cell.addEventListener("click", () => handleGardenClick(i));
+                grid.appendChild(cell);
+            }
+        }
+
+        // Clicking a tile ONLY selects it. Planting, watering and harvesting
+        // are done through the Topic 5 buttons so the Python tree-growth
+        // state stays in charge of what actually appears on the grid.
+        function handleGardenClick(pos) {
+            const row = Math.floor(pos / 5);
+            const col = pos % 5;
+
+            selectedPos = pos;
+            renderGarden();
+
+            if (pyodideInstance && pyodideInstance.globals.has("t5_select_tile")) {
+                pyodideInstance.globals.get("t5_select_tile")(pos);
+            } else {
+                showToast(`Selected (${row}, ${col}) – waiting for Python to load...`);
+            }
+        }
+
+        const topicTemplates = {
+            1: {
+                title: "Python OOP + Big O + Stacks",
+                code: `# Topic 1: Python OOP + Big O + Stacks
+
+class ActionHistoryStack:
+    def __init__(self):
+        self.action_history_stack = []
+
+    def push_action(self, action_string):
+        self.action_history_stack.append(action_string)
+        pushAction(action_string)
+
+    def pop_action(self):
+        if self.is_empty():
+            return "The Action History Stack is Empty."
+        return self.action_history_stack.pop()
+
+    def peek(self):
+        if not self.is_empty():
+            print(self.action_history_stack[-1])
+        else:
+            return "The Action History Stack is Empty."
+            
+    def is_empty(self):
+        return len(self.action_history_stack) == 0 
+
+stack = ActionHistoryStack()
+stack.push_action("Planted at [1][2]")
+stack.push_action("Planted at [2][3]")
+stack.peek()
+print("\\nAction History Stack ready!\\n")
+`
+            },
+            2: {
+                title: "Queues & Deques (FIFO Elements)",
+                code: `# Topic 2: Queues & Deques (FIFO Elements)
+from collections import deque
+
+class ClimateQueue:
+    def __init__(self):
+        self.queue = deque() 
+
+    def add_challenge(self, event_name): 
+        self.queue.append(event_name)
+
+    def process_hazard(self):
+        if self.queue:
+            return self.queue.popleft()
+        return "The queue is empty."
+
+q = ClimateQueue()
+q.add_challenge("Drought")
+q.add_challenge("Melting Ice")
+q.add_challenge("Flood")
+
+updateClimateQueue(list(q.queue))
+print("The Climate Queue is ready.")
+`
+            },
+            3: {
+                title: "Resource Storage and Seed Bank",
+                code: `# Topic 3: Additional Module
+class Plant:
+    def __init__(self, name, water_need):
+        self.name = name
+        self.water_need = water_need
+        self.health = 100
+        print(f"A plant '{self.name}' is created.\\n")
+
+flower_plant = Plant("Forget me not", 70)
+updateResources(water=200, seeds=90, energy=110, hope=80, coins=999)
+
+addPlantsToDropdown([
+    ("Cherry Blossom", "🌸", 6),
+    ("Lotus", "🪷", 10),
+    ("Hyacinth", "🪻", 15),
+    ("Tulip", "🌷", 20)
+])
+
+print("Resource Storage and Plant dropdown unlocked!")
+`
+            },
+            4: {
+                title: "Static/Dynamic Arrays, 2D Lists, & Memory Structures",
+                code: `# Topic 4: Static/Dynamic Arrays, 2D Lists, & Memory Structures
+
+# 1. Static-style 2D array (fixed 5x5 garden grid using list of lists)
+ROWS, COLS = 5, 5
+garden_grid = [["⬜" for _ in range(COLS)] for _ in range(ROWS)]
+
+print("Initialized a 5x5 static-style 2D garden grid (list of lists).")
+print(f"Memory layout: {ROWS} rows x {COLS} columns = {ROWS * COLS} cells\\n")
+
+# 2. Helper function to plant a crop and sync with the JavaScript UI bridge
+def plant_at(row, col, crop_name):
+    if 0 <= row < ROWS and 0 <= col < COLS:
+        garden_grid[row][col] = crop_name
+        pos = row * COLS + col  # Flatten 2D coordinates to 1D index (O(1) access time)
+        addPlantToGrid(pos, crop_name)
+        print(f"Planted '{crop_name}' at grid[{row}][{col}] (UI pos = {pos})")
+    else:
+        print(f"Invalid coordinates: ({row}, {col})")
+
+# 3. Dynamic array demonstration (Seed Bank with amortized O(1) append)
+seed_bank = []
+print("\\nDynamic seed bank demonstration (grows dynamically via .append()):")
+new_seeds = ["🌸 Cherry Blossom", "🪷 Lotus", "🪻 Hyacinth", "🌷 Tulip"]
+for seed in new_seeds:
+    seed_bank.append(seed)
+    print(f"  Appended -> {seed} (Current length = {len(seed_bank)})")
+
+# 4. Executing planting operations using the 2D grid structure
+print("\\nExecuting planting operations on the 2D grid:")
+plant_at(0, 2, "🌸")
+plant_at(1, 1, "🪷")
+plant_at(2, 2, "🌷")
+plant_at(3, 3, "🪻")
+
+# 5. Memory layout & row-major traversal demonstration
+print("\\nRow-major traversal of the 2D grid (Memory Locality Demo):")
+for r in range(ROWS):
+    row_str = " | ".join(f"{str(garden_grid[r][c]):^3}" for c in range(COLS))
+    print(f"  Row {r}: [{row_str}]")
+
+print("\\nStatic 2D grid and dynamic seed bank initialized successfully!")
+`
+            },
+            5: {
+                title: "Hierarchical Trees & Traversals",
+                code: `# Topic 5: Hierarchical Trees & Traversals (2D Grid & Growth Simulation)
+import js
+import re
+
+class TreeNode:
+    def __init__(self, name, emoji, stage_level):
+        self.name = name
+        self.emoji = emoji
+        self.stage_level = stage_level
+        self.children = []
+
+    def add_child(self, child):
+        self.children.append(child)
+
+# Build Growth Journey Tree Hierarchy
+root = TreeNode("Seed", "🌰", 0)
+seedling = TreeNode("Seedling", "🌱", 1)
+sprout = TreeNode("Sprout", "🌿", 2)
+bud = TreeNode("Bud", "🪴", 3)
+
+root.add_child(seedling)
+seedling.add_child(sprout)
+sprout.add_child(bud)
+
+ROWS, COLS = 5, 5
+if "t5_state" not in globals():
+    global t5_state
+    t5_state = {
+        "coins": 999,
+        "grid_data": [[None for _ in range(COLS)] for _ in range(ROWS)],
+        "active_pos": None
+    }
+
+def t5_refresh_ui(msg):
+    try:
+        js.document.getElementById("t5-coins").innerText = str(t5_state["coins"])
+        pos = t5_state["active_pos"]
+        if pos is not None:
+            r, c = divmod(pos, COLS)
+            js.document.getElementById("t5-tile").innerText = f"Row {r}, Col {c}"
+            plant = t5_state["grid_data"][r][c]
+            if plant:
+                stage_name = plant["stages"][plant["stage_index"]]["name"]
+                stage_emoji = plant["stages"][plant["stage_index"]]["emoji"]
+                js.document.getElementById("t5-stage").innerText = f"{stage_emoji} {stage_name} (Watered {plant['stage_index']}/4)"
+            else:
+                js.document.getElementById("t5-stage").innerText = "Empty Soil"
+        else:
+            js.document.getElementById("t5-tile").innerText = "None selected"
+            js.document.getElementById("t5-stage").innerText = "Not Selected"
+        
+        js.document.getElementById("t5-log").innerHTML = msg
+        updateResources(water=200, seeds=90, energy=110, hope=80, coins=t5_state["coins"])
+    except Exception as e:
+        print(f"UI Error: {e}")
+
+def t5_select_tile(pos):
+    global t5_state
+    t5_state["active_pos"] = pos
+    r, c = divmod(pos, COLS)
+    plant = t5_state["grid_data"][r][c]
+    if plant:
+        t5_refresh_ui(f"📍 Selected tile ({r}, {c}). Contains: {plant['final_name']}. Ready to water or harvest.")
+    else:
+        t5_refresh_ui(f"📍 Selected empty soil at ({r}, {c}). Choose a seed from the dropdown above and click Plant Seed.")
+
+def t5_plant_selected():
+    global t5_state
+    pos = t5_state["active_pos"]
+    if pos is None:
+        t5_refresh_ui("⚠️ Please click a tile on the sanctuary grid first to select where to plant!")
+        return
+    
+    r, c = divmod(pos, COLS)
+    if t5_state["grid_data"][r][c] is not None:
+        t5_refresh_ui("⚠️ This tile already has a growing plant!")
+        return
+
+    select_el = js.document.getElementById("crop-selector")
+    if select_el is None or select_el.selectedIndex is None or select_el.selectedIndex < 0:
+        t5_refresh_ui("⚠️ Seed Bag is empty. Pick a flower from the dropdown first!")
+        return
+
+    try:
+        # NOTE: select_el.options is an HTMLOptionsCollection, which Pyodide
+        # cannot subscript with []. Use its .item() DOM method instead.
+        option_el = select_el.options.item(select_el.selectedIndex)
+        option_text = str(option_el.textContent).strip()
+        crop_name = str(select_el.value)
+        cost_match = re.search(r'\\((\\d+)c\\)', option_text)
+        cost = int(cost_match.group(1)) if cost_match else 10
+        parts = option_text.split()
+        final_emoji = parts[0] if parts else "🌸"
+    except Exception as e:
+        # Report the real problem instead of silently planting a default flower.
+        t5_refresh_ui(f"❌ Could not read the Seed Bag selection: {e}")
+        return
+
+    if t5_state["coins"] < cost:
+        t5_refresh_ui(f"❌ Not enough coins! {crop_name} costs {cost}c, but you have {t5_state['coins']}c.")
+        return
+
+    t5_state["coins"] -= cost
+
+    stages = [
+        {"name": "Seed", "emoji": "🌰"},
+        {"name": "Seedling", "emoji": "🌱"},
+        {"name": "Sprout", "emoji": "🌿"},
+        {"name": "Bud", "emoji": "🪴"},
+        {"name": f"Blooming {crop_name}", "emoji": final_emoji}
+    ]
+
+    t5_state["grid_data"][r][c] = {
+        "final_name": crop_name,
+        "cost": cost,
+        "stages": stages,
+        "stage_index": 0
+    }
+
+    addPlantToGrid(pos, "Seed", "🌰")
+    pushAction(f"Planted {crop_name} seed at ({r},{c}) [-{cost}c]")
+    t5_refresh_ui(f"🌱 Planted {crop_name} Seed (🌰) at Row {r}, Col {c}! Cost: {cost}c. Now click 'Water Plant' 4 times.")
+
+def t5_water_selected():
+    global t5_state
+    pos = t5_state["active_pos"]
+    if pos is None:
+        t5_refresh_ui("⚠️ Select a planted tile first!")
+        return
+    
+    r, c = divmod(pos, COLS)
+    plant = t5_state["grid_data"][r][c]
+    if not plant:
+        t5_refresh_ui("⚠️ No plant found on this tile. Plant a seed first!")
+        return
+
+    max_index = len(plant["stages"]) - 1
+    if plant["stage_index"] < max_index:
+        plant["stage_index"] += 1
+        current_stage = plant["stages"][plant["stage_index"]]
+        
+        addPlantToGrid(pos, current_stage["name"], current_stage["emoji"])
+        pushAction(f"Watered tile ({r},{c}) -> DFS Traversed to {current_stage['name']}")
+        
+        if plant["stage_index"] == max_index:
+            t5_refresh_ui(f"🌸 Fully bloomed into {current_stage['name']}! Ready for harvest.")
+        else:
+            t5_refresh_ui(f"💧 Watered! Tree traversal advanced to stage: <b>{current_stage['emoji']} {current_stage['name']}</b> ({plant['stage_index']}/4)")
+    else:
+        t5_refresh_ui(f"🌸 Plant is already fully bloomed. Click Harvest!")
+
+def t5_harvest_selected():
+    global t5_state
+    pos = t5_state["active_pos"]
+    if pos is None:
+        t5_refresh_ui("⚠️ Select a tile to harvest!")
+        return
+    
+    r, c = divmod(pos, COLS)
+    plant = t5_state["grid_data"][r][c]
+    if not plant:
+        t5_refresh_ui("⚠️ Nothing to harvest on this tile!")
+        return
+
+    max_index = len(plant["stages"]) - 1
+    if plant["stage_index"] < max_index:
+        t5_refresh_ui(f"⚠️ Plant is not fully bloomed yet! Water it until stage 4.")
+        return
+
+    reward = plant["cost"] * 2
+    t5_state["coins"] += reward
+    
+    t5_state["grid_data"][r][c] = None
+    clearGridTile(pos)
+    
+    pushAction(f"Harvested {plant['final_name']} at ({r},{c}) [+{reward} coins (2x)]")
+    t5_refresh_ui(f"🌾 Harvest successful! Earned +{reward} coins (2x return of {plant['cost']}c cost). Tile cleared and ready to replant.")
+
+globals()['t5_plant_selected'] = t5_plant_selected
+globals()['t5_water_selected'] = t5_water_selected
+globals()['t5_harvest_selected'] = t5_harvest_selected
+globals()['t5_select_tile'] = t5_select_tile
+
+print("=== TOPIC 5: HIERARCHICAL TREES & 2D GRID GROWTH LOADED ===")
+t5_refresh_ui("System ready. Click any tile on the Sanctuary Garden Grid to begin.")
+`
+            },
+            6: {
+                title: "Binary Search Trees (BST) & Node Mutation",
+                code: `# Topic 6: Binary Search Trees (BST) & Node Mutation
+# ==== WRITE YOUR CODE HERE ====
+`
+            },
+            7: {
+                title: "Hash Tables, Collisions, & Rehashing",
+                code: `# Topic 7: Hash Tables, Collisions, & Rehashing
+# ==== WRITE YOUR CODE HERE ====
+`
+            },
+            8: {
+                title: "Graph Foundations, Adjacency Matrices/Lists, & DFS/BFS",
+                code: `# Topic 8: Graph Foundations, Adjacency Matrices/Lists, & DFS/BFS
+# ==== WRITE YOUR CODE HERE ====
+`
+            },
+            9: {
+                title: "Sorting Algorithms (Bubble, Insertion, Selection, Quick, & Merge Sort)",
+                code: `# Topic 9: Sorting Algorithms (Bubble, Insertion, Selection, Quick, & Merge Sort)
+# ==== WRITE YOUR CODE HERE ====
+`
+            },
+            10: {
+                title: "Searching Algorithms (Linear Search vs. Binary Search)",
+                code: `# Topic 10: Searching Algorithms (Linear Search vs. Binary Search)
+# ==== WRITE YOUR CODE HERE ====
+`
+            },
+            11: {
+                title: "Advanced Strategic Paradigms (Dijkstra's Algorithm & Greedy Patterns)",
+                code: `# Topic 11: Advanced Strategic Paradigms (Dijkstra's Algorithm & Greedy Patterns)
+# ==== WRITE YOUR CODE HERE ====
+`
+            },
+            12: {
+                title: "Dynamic Programming (DP), Memoization, & Divide-and-Conquer",
+                code: `# Topic 12: Dynamic Programming (DP), Memoization, & Divide-and-Conquer
+# ==== WRITE YOUR CODE HERE ====
+`
+            }
+        };
+
+        async function initPyodide() {
+            if (pyodideInstance) return;
+            const consoleEl = document.getElementById("output-console");
+            if (consoleEl) {
+                consoleEl.innerHTML = `<span class="text-amber-400">Loading Python...</span><br>`;
+            }
+            try {
+                pyodideInstance = await loadPyodide();
+                pyodideInstance.globals.set("addPlantToGrid", addPlantToGrid);
+                pyodideInstance.globals.set("clearGridTile", clearGridTile);
+                pyodideInstance.globals.set("updateResources", updateResources);
+                pyodideInstance.globals.set("addPlantsToDropdown", addPlantsToDropdown);
+                pyodideInstance.globals.set("pushAction", pushAction);
+                pyodideInstance.globals.set("updateClimateQueue", updateClimateQueue);
+                await pyodideInstance.runPythonAsync(`
+                    import sys
+                    from js import document
+                    class Console:
+                        def write(self, text):
+                            if text:
+                                el = document.getElementById("output-console")
+                                if el:
+                                    el.innerHTML += text.replace("\\n", "<br>")
+                        def flush(self): pass
+                    sys.stdout = Console()
+                `);
+                // Load the Topic 5 grid/tree logic immediately so the
+                // Interactive Sanctuary panel's Plant/Water/Harvest buttons
+                // work right away, without requiring the student to first
+                // open the Code Editor tab and run Topic 5 manually.
+                await pyodideInstance.runPythonAsync(topicTemplates[5].code);
+
+                if (consoleEl) {
+                    consoleEl.innerHTML = `<span class="text-emerald-400">Python ready.</span><br>`;
+                }
+            } catch (err) {
+                if (consoleEl) {
+                    consoleEl.innerHTML = `<span class="text-red-400">Failed to load Python: ${err.message}</span>`;
+                }
+                throw err;
+            }
+        }
+
+        function updateClimateQueue(events) {
+            const container = document.getElementById("climate-queue");
+            container.innerHTML = "";
+            if (!events || !events.length) return;
+            events.forEach(event => {
+                const div = document.createElement("div");
+                div.className = "p-3 bg-amber-950/40 border border-amber-900 rounded-xl text-xs";
+                div.innerHTML = `<div class="font-bold text-amber-400">${event}</div>`;
+                container.appendChild(div);
+            });
+        }
+
+        function updateResources(water, seeds, energy, hope, coins) {
+            if (typeof water === "object" && water !== null) {
+                const args = water;
+                water = args.water !== undefined ? args.water : 0;
+                seeds = args.seeds !== undefined ? args.seeds : 0;
+                energy = args.energy !== undefined ? args.energy : 0;
+                hope = args.hope !== undefined ? args.hope : 0;
+                coins = args.coins !== undefined ? args.coins : 0;
+            } else {
+                water = water !== undefined ? water : 0;
+                seeds = seeds !== undefined ? seeds : 0;
+                energy = energy !== undefined ? energy : 0;
+                hope = hope !== undefined ? hope : 0;
+                coins = coins !== undefined ? coins : 0;
+            }
+            const waterMax = 200, seedsMax = 100, energyMax = 120, hopeMax = 100;
+            document.getElementById("water-text").innerText = `${water} / ${waterMax} L`;
+            document.getElementById("water-bar").style.width = `${Math.min(100, (water / waterMax) * 100)}%`;
+            document.getElementById("seeds-text").innerText = `${seeds} / ${seedsMax}`;
+            document.getElementById("seeds-bar").style.width = `${Math.min(100, (seeds / seedsMax) * 100)}%`;
+            document.getElementById("energy-text").innerText = `${energy} / ${energyMax} Wh`;
+            document.getElementById("energy-bar").style.width = `${Math.min(100, (energy / energyMax) * 100)}%`;
+            document.getElementById("hope-text").innerText = `${hope} / ${hopeMax}`;
+            document.getElementById("hope-bar").style.width = `${Math.min(100, (hope / hopeMax) * 100)}%`;
+            document.getElementById("coins-text").innerText = `${coins} Coins`;
+        }
+
+        function addPlantsToDropdown(plants) {
+            const select = document.getElementById("crop-selector");
+            select.innerHTML = "";
+            if (!plants) return;
+            plants.forEach(([name, emoji, cost]) => {
+                const option = document.createElement("option");
+                option.value = name;
+                option.textContent = `${emoji} ${name} (${cost}c)`;
+                select.appendChild(option);
+            });
+        }
+
+        function pushAction(action) {
+            displayActionHistory.push(action);
+            if (displayActionHistory.length > 8) displayActionHistory.shift();
+            renderActionStack();
+        }
+
+        function renderActionStack() {
+            const container = document.getElementById("action-stack");
+            container.innerHTML = "";
+            [...displayActionHistory].reverse().forEach(act => {
+                const div = document.createElement("div");
+                div.className = "bg-emerald-950/60 border-l-2 border-amber-500 px-3 py-2 rounded text-xs text-emerald-100";
+                div.textContent = `→ ${act}`;
+                container.appendChild(div);
+            });
+        }
+
+        function triggerUndo() {
+            if (displayActionHistory.length > 0) {
+                const undone = displayActionHistory.pop();
+                renderActionStack();
+                showToast(`Undid: ${undone}`);
+            } else {
+                showToast("Stack is empty.");
+            }
+        }
+
+        function showToast(msg) {
+            const toast = document.createElement("div");
+            toast.className = "fixed bottom-6 right-6 bg-emerald-900 border border-emerald-400 text-white px-5 py-3 rounded-2xl shadow-2xl z-50 text-sm";
+            toast.textContent = msg;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 2500);
+        }
+
+        async function runPythonCode() {
+            const consoleEl = document.getElementById("output-console");
+            consoleEl.innerHTML = `<span class="text-amber-400">Running...</span><br>`;
+            try {
+                await initPyodide();
+                const code = document.getElementById("code-editor").value.trim();
+                await pyodideInstance.runPythonAsync(code);
+            } catch (err) {
+                consoleEl.innerHTML += `<span class="text-red-400">Error: ${err.message}</span>`;
+            }
+        }
+
+        function loadTopic() {
+            const key = document.getElementById("topic-selector").value;
+            document.getElementById("code-editor").value = topicTemplates[key].code;
+        }
+
+        function switchTab(tab) {
+            document.getElementById("view-game").classList.toggle("hidden", tab !== "game");
+            document.getElementById("view-code").classList.toggle("hidden", tab !== "code");
+            document.getElementById("tab-game").classList.toggle("bg-[#283623]", tab === "game");
+            document.getElementById("tab-game").classList.toggle("text-emerald-100", tab === "game");
+            document.getElementById("tab-code").classList.toggle("bg-[#283623]", tab === "code");
+            document.getElementById("tab-code").classList.toggle("text-emerald-100", tab === "code");
+        }
+
+        window.onload = () => {
+            document.getElementById("version-badge").textContent = "v" + APP_VERSION;
+            lucide.createIcons();
+            renderGarden();
+            renderActionStack();
+            updateResources(0, 0, 0, 0, 999);
+
+            // Seed Bag must be usable straight away, otherwise the student
+            // has no flower to choose before pressing "Plant Seed".
+            addPlantsToDropdown([
+                ["Cherry Blossom", "🌸", 6],
+                ["Lotus", "🪷", 10],
+                ["Hyacinth", "🪻", 15],
+                ["Tulip", "🌷", 20]
+            ]);
+
+            const select = document.getElementById("topic-selector");
+            Object.keys(topicTemplates).forEach(k => {
+                const opt = document.createElement("option");
+                opt.value = k;
+                opt.textContent = topicTemplates[k].title;
+                select.appendChild(opt);
+            });
+            loadTopic();
+            switchTab("game");
+            initPyodide().catch(() => { });
+        };
+    </script>
+</body>
+
+</html>
