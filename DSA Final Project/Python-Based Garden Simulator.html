@@ -829,6 +829,7 @@ sprout.add_child(bud)
 # Each function takes the ROOT of a binary tree (any node with .left and .right)
 # and returns the nodes in the order they are visited.
 # Topic 6 uses these to walk the Plant BST.
+
 def bfs(root):
     # Breadth-First (Level-Order): top to bottom, left to right, using a FIFO queue
     result = []
@@ -1188,25 +1189,7 @@ def mutate_node(node):
     node.plant_name = MUTATED_NAME[node.plant_name]
     return True
 
-
-# ---- TRY IT YOURSELF: remove the # signs, then press Run Python Code ----
-# practice = BinarySearchTree()
-# practice.insert("Lotus", 30)
-# practice.insert("Daisy", 25)
-# practice.insert("Tulip", 40)
-# print(practice.root.plant_name)                  # Lotus  (the root)
-# print(practice.root.left.plant_name)             # Daisy  (25 < 30, so LEFT)
-# print(practice.search(40).plant_name)            # Tulip  (40 > 30, so RIGHT)
-# mutate_node(practice.search(40))
-# print(practice.root.right.plant_name, practice.root.right.growth_score)   # Crystal Tulip 40
-# (bfs, preorder, inorder and postorder are defined in Topic 5)
-# print([n.growth_score for n in bfs(practice.root)])        # [30, 25, 40]  level by level
-# print([n.growth_score for n in preorder(practice.root)])   # [30, 25, 40]  Root, Left, Right
-# print([n.growth_score for n in inorder(practice.root)])    # [25, 30, 40]  sorted!
-# print([n.growth_score for n in postorder(practice.root)])  # [25, 40, 30]  Left, Right, Root
-
-
-# ============ PART 2: connects the BST to your garden (you can skip this) ============
+# ============ PART 2: connects the BST to your garden  ============
 garden_bst = BinarySearchTree()          # starts EMPTY
 t6_state = {"info": {}, "selected": None, "path": None, "message": None}
 
