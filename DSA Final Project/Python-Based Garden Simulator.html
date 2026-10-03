@@ -13,200 +13,339 @@
 
         body {
             font-family: 'Plus Jakarta Sans', sans-serif;
-            background-color: #1e261c;
-            color: #f3f4f6;
+            background-color: #161225;
+            /* soft moonlit glows so the flat purple reads as a night sky */
+            background-image:
+                radial-gradient(900px 500px at 8% -8%, rgba(124, 58, 237, 0.20), transparent 60%),
+                radial-gradient(800px 460px at 96% 4%, rgba(217, 70, 239, 0.12), transparent 60%),
+                radial-gradient(900px 600px at 50% 112%, rgba(79, 70, 229, 0.16), transparent 60%);
+            background-attachment: fixed;
+            color: #ede9fe;
         }
+
+        ::selection { background: rgba(167, 139, 250, 0.45); color: #fff; }
+
+        /* slim violet scrollbars for the log boxes, editor and history */
+        * { scrollbar-width: thin; scrollbar-color: #6d28d9 transparent; }
+        *::-webkit-scrollbar { width: 8px; height: 8px; }
+        *::-webkit-scrollbar-thumb { background: #6d28d9; border-radius: 8px; }
+        *::-webkit-scrollbar-thumb:hover { background: #8b5cf6; }
+        *::-webkit-scrollbar-track { background: transparent; }
 
         .code-font {
             font-family: 'JetBrains Mono', monospace;
         }
 
         .glass-panel {
-            background: rgba(40, 54, 35, 0.45);
+            background: rgba(35, 25, 50, 0.55);
             backdrop-filter: blur(12px);
-            border: 1px solid rgba(120, 143, 114, 0.2);
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(139, 92, 246, 0.22);
+            box-shadow: 0 8px 32px 0 rgba(8, 4, 20, 0.45),
+                        inset 0 1px 0 rgba(196, 181, 253, 0.06);
         }
+
+        /* ---- Enchanted (mutated) plant tiles ----
+           The flower stays big and centred; the aura, sparkles and butterfly
+           are separate layers so nothing is squeezed into one line of text.
+           --aura is set per flower from JavaScript (an "r,g,b" triple). */
+        .enchanted { position: relative; overflow: hidden; }
+        .enchanted .aura {
+            position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+            /* 'screen' blending lights the tile up with colour instead of greying it */
+            background: radial-gradient(circle at 50% 45%, rgba(var(--aura), .8) 0%, rgba(var(--aura), .3) 42%, rgba(var(--aura), 0) 74%);
+            mix-blend-mode: screen;
+            box-shadow: inset 0 0 16px rgba(var(--aura), .55);
+            animation: aura-pulse 3.2s ease-in-out infinite;
+        }
+        .enchanted .bloom {
+            position: relative; z-index: 1; line-height: 1;
+            filter: drop-shadow(0 0 7px rgba(var(--aura), .95));
+            animation: bloom-float 3.6s ease-in-out infinite;
+        }
+        .enchanted .fx { position: absolute; z-index: 2; line-height: 1; pointer-events: none; }
+        .enchanted .fx-spark-a { top: 5%;  right: 8%; font-size: .55em; animation: twinkle 2.4s ease-in-out infinite; }
+        .enchanted .fx-spark-b { top: 15%; left: 10%; font-size: .34em; animation: twinkle 2.4s ease-in-out .9s infinite; }
+        .enchanted .fx-spark-c { bottom: 12%; right: 12%; font-size: .3em; animation: twinkle 2.4s ease-in-out 1.6s infinite; }
+        .enchanted .fx-butterfly { bottom: 4%; left: 6%; font-size: .56em; animation: flutter 4.5s ease-in-out infinite; }
+
+        @keyframes aura-pulse  { 0%, 100% { opacity: .75; } 50% { opacity: 1; } }
+        @keyframes bloom-float { 0%, 100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-2px) scale(1.06); } }
+        @keyframes twinkle     { 0%, 100% { opacity: .35; transform: scale(.7) rotate(0deg); } 50% { opacity: 1; transform: scale(1.15) rotate(18deg); } }
+        @keyframes flutter     {
+            0%, 100% { transform: translate(0, 0) rotate(-8deg); }
+            25%      { transform: translate(6px, -5px) rotate(10deg); }
+            50%      { transform: translate(11px, 1px) rotate(-6deg); }
+            75%      { transform: translate(4px, -4px) rotate(8deg); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .enchanted .aura, .enchanted .bloom, .enchanted .fx { animation: none; }
+        }
+
+        /* ---- Plant Genetics Lab (BST) ---- */
+        .gl-view{position:relative;overflow:auto;border-radius:14px;background:radial-gradient(circle at 50% 0,rgba(124,58,237,.16),transparent 70%),#120e22;border:1px solid rgba(139,92,246,.25)}
+        .gl-canvas{position:relative;margin:0 auto}
+        .gl-canvas svg{position:absolute;inset:0;pointer-events:none}
+        .gl-edge{fill:none;stroke:#6d5bb0;stroke-width:2}
+        .gl-edge.path{stroke:#fbbf24;stroke-width:3}
+        .gl-edge.bad{stroke:#f87171;stroke-dasharray:5 4}
+        .gl-node{position:absolute;width:100px;height:92px;padding:6px 2px 0;text-align:center;border-radius:12px;background:#2a2145;border:2px solid #4c3a8a;cursor:pointer;user-select:none;transition:transform .15s,box-shadow .15s}
+        .gl-node:hover{transform:translateY(-3px)}
+        .gl-node .e{font-size:26px;line-height:1.1}
+        .gl-node .s{font-weight:800;font-size:15px;color:#fde68a}
+        .gl-node .n{font-size:10px;line-height:1.15;color:#c4b5fd;padding:0 3px}
+        .gl-node .b{position:absolute;top:-10px;left:-10px;width:20px;height:20px;border-radius:50%;background:#fbbf24;color:#1c1917;font-size:11px;font-weight:800;line-height:20px}
+        .gl-node .c{position:absolute;top:-13px;right:-6px;font-size:14px}
+        .gl-node.sel{border-color:#e879f9;box-shadow:0 0 0 3px rgba(232,121,249,.4)}
+        .gl-node.path{border-color:#fbbf24;box-shadow:0 0 14px rgba(251,191,36,.55)}
+        .gl-node.found{border-color:#34d399;box-shadow:0 0 16px rgba(52,211,153,.7)}
+        .gl-node.bad{border-color:#f87171;background:#3b1522;box-shadow:0 0 16px rgba(248,113,113,.7);animation:gl-shake .4s ease-in-out infinite alternate}
+        .gl-node.trav-done{border-color:#38bdf8;background:#1e2a4a;box-shadow:0 0 10px rgba(56,189,248,.45)}
+        .gl-node.trav-cur{border-color:#fde047;background:#3a2f12;box-shadow:0 0 24px rgba(253,224,71,.9);animation:gl-trav .45s ease-in-out infinite alternate}
+        .gl-node .tb{position:absolute;bottom:-10px;left:50%;transform:translateX(-50%);min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:#38bdf8;color:#082f49;font-size:11px;font-weight:800;line-height:20px}
+        @keyframes gl-trav{from{transform:scale(1)}to{transform:scale(1.1)}}
+        .gl-node.pop{animation:gl-pop .5s ease-out}
+        .gl-node.in{animation:gl-in .4s both}
+        .gl-node.ghost{border-style:dashed;border-color:#f87171;background:transparent;cursor:default;color:#fca5a5;font-size:11px;padding-top:24px}
+        @keyframes gl-shake{from{transform:translateX(-2px)}to{transform:translateX(2px)}}
+        @keyframes gl-pop{0%{transform:scale(.3);opacity:0}70%{transform:scale(1.15)}100%{transform:scale(1);opacity:1}}
+        @keyframes gl-in{from{opacity:.25;transform:scale(.9)}to{opacity:1;transform:scale(1)}}
+        .gl-chip{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;background:#2a2145;border:1px solid #4c3a8a;margin:2px}
+        .gl-msg-good{background:rgba(16,185,129,.15);border-color:#10b981}.gl-msg-bad{background:rgba(239,68,68,.18);border-color:#ef4444}
+        .gl-msg-warn{background:rgba(245,158,11,.15);border-color:#f59e0b}.gl-msg-info{background:rgba(139,92,246,.15);border-color:#8b5cf6}
+        #genetics-lab details{background:rgba(26,20,48,.7);border:1px solid rgba(139,92,246,.25);border-radius:10px;padding:6px 10px;margin-top:6px;font-size:12px}
+        #genetics-lab summary{cursor:pointer;font-weight:700;color:#ddd6fe}
+        @media (prefers-reduced-motion: reduce){.gl-node{animation:none!important}}
     </style>
 </head>
 
 <body class="min-h-screen p-4 flex flex-col justify-between overflow-x-hidden">
-    <header
-        class="w-full max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4 pb-2 border-b border-[#43533c]/40">
-        <div>
-            <div class="flex items-center gap-2">
-                <h1 class="text-2xl font-extrabold tracking-tight text-emerald-100">Python-Based Garden Simulator</h1>
-                <span id="version-badge"
-                    class="text-[10px] font-bold uppercase tracking-widest text-emerald-400/90 bg-emerald-950/50 border border-emerald-800/60 px-2 py-0.5 rounded-full"></span>
-            </div>
-            <p class="text-xs text-emerald-300/80 font-medium">SDG 2, 13, 15</p>
+    <header class="w-full max-w-7xl mx-auto mb-4 pb-3 border-b border-[#4c3a8a]/30">
+        <div class="flex items-center gap-2">
+            <h1 class="text-2xl font-extrabold tracking-tight bg-gradient-to-r from-purple-200 via-violet-300 to-fuchsia-300 bg-clip-text text-transparent">Python-Based Garden Simulator</h1>
+            <span id="version-badge"
+                class="text-[10px] font-bold uppercase tracking-widest text-purple-300 bg-purple-950/70 border border-purple-600/60 px-2 py-0.5 rounded-full"></span>
         </div>
-        <div class="flex items-center gap-3">
-            <div class="glass-panel px-4 py-2 rounded-xl flex flex-col items-end">
-                <span class="text-[10px] text-emerald-400 uppercase tracking-widest font-bold">DAY</span>
-                <span class="text-lg font-extrabold text-white" id="day-counter">1</span>
-            </div>
-            <div class="glass-panel px-4 py-2 rounded-xl flex flex-col items-end">
-                <span class="text-[10px] text-emerald-400 uppercase tracking-widest font-bold">SCORE</span>
-                <span class="text-lg font-extrabold text-emerald-300" id="stewardship-counter">0%</span>
-            </div>
-        </div>
+        <p class="text-xs text-purple-300/80 font-medium">SDG 2, 13, 15</p>
     </header>
+
+    <!-- Compact horizontal Resource + Seed Bag bar -->
+    <div class="w-full max-w-7xl mx-auto glass-panel rounded-2xl px-5 py-3 mb-4 flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+        <div class="flex flex-wrap items-center gap-x-6 gap-y-2">
+            <div class="flex flex-col items-center gap-1 w-[70px]" title="Water Reserves">
+                <span class="text-xl leading-none">💧</span>
+                <span id="water-text" class="text-[11px] font-bold text-sky-200 whitespace-nowrap">120/120L</span>
+                <div class="w-14 bg-[#1a1430] h-1.5 rounded-full overflow-hidden">
+                    <div id="water-bar" class="h-full rounded-full bg-gradient-to-r from-indigo-500 to-sky-400" style="width:100%"></div>
+                </div>
+            </div>
+            <div class="flex flex-col items-center gap-1 w-[70px]" title="Seed Inventory">
+                <span class="text-xl leading-none">🌱</span>
+                <span id="seeds-text" class="text-[11px] font-bold text-purple-200 whitespace-nowrap">120/120</span>
+                <div class="w-14 bg-[#1a1430] h-1.5 rounded-full overflow-hidden">
+                    <div id="seeds-bar" class="h-full rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-400" style="width:100%"></div>
+                </div>
+            </div>
+            <div class="flex flex-col items-center gap-1 w-[70px]" title="Solar Energy">
+                <span class="text-xl leading-none">☀️</span>
+                <span id="energy-text" class="text-[11px] font-bold text-amber-200 whitespace-nowrap">120/120Wh</span>
+                <div class="w-14 bg-[#1a1430] h-1.5 rounded-full overflow-hidden">
+                    <div id="energy-bar" class="h-full rounded-full bg-gradient-to-r from-amber-500 to-yellow-300" style="width:100%"></div>
+                </div>
+            </div>
+            <div class="flex flex-col items-center gap-1 w-[70px]" title="Community Hope">
+                <span class="text-xl leading-none">💗</span>
+                <span id="hope-text" class="text-[11px] font-bold text-rose-200 whitespace-nowrap">0/100</span>
+                <div class="w-14 bg-[#1a1430] h-1.5 rounded-full overflow-hidden">
+                    <div id="hope-bar" class="h-full rounded-full bg-gradient-to-r from-rose-500 to-pink-400" style="width:0%"></div>
+                </div>
+            </div>
+            <div class="flex flex-col items-center gap-1 w-[70px]" title="Coins / Dues">
+                <span class="text-xl leading-none">🪙</span>
+                <span id="coins-text" class="text-[11px] font-bold text-yellow-200 whitespace-nowrap">0 Coins</span>
+            </div>
+        </div>
+        <div class="flex items-center gap-2">
+            <span class="text-xs text-purple-300 whitespace-nowrap">🌱 Seed Bag</span>
+            <select id="crop-selector"
+                class="focus:outline-none focus:ring-2 focus:ring-purple-500/50 bg-[#1a1430] border border-purple-700 text-purple-100 text-sm rounded-xl px-3 py-2">
+            </select>
+        </div>
+    </div>
     <main class="w-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-4 flex-grow">
         <!-- LEFT: RESOURCES -->
         <section id="resources-section" class="lg:col-span-3 glass-panel rounded-2xl p-4">
-            <h2
-                class="text-base font-bold text-emerald-200 border-b border-[#43533c]/30 pb-2 mb-4 flex items-center gap-2">
-                <i data-lucide="database" class="w-4 h-4 text-emerald-400"></i> Resource Storage
+            <h2 class="text-base font-bold text-purple-200 border-b border-[#4c3a8a]/30 pb-2 mb-4 flex items-center gap-2">
+                <i data-lucide="sparkles" class="w-4 h-4 text-purple-400"></i> Garden Actions
             </h2>
-            <div class="space-y-4">
-                <div>
-                    <div class="flex justify-between text-xs font-semibold">
-                        <span class="flex items-center gap-1.5 text-blue-300">Water Reserves</span>
-                        <span id="water-text">0 / 200 L</span>
-                    </div>
-                    <div class="w-full bg-[#1b2219] h-2.5 rounded-full overflow-hidden">
-                        <div id="water-bar" class="bg-gradient-to-r from-blue-500 to-cyan-400 h-full rounded-full"
-                            style="width: 0%"></div>
-                    </div>
+
+            <!-- Hierarchical Tree Growth & 2D Grid Simulator toolbar -->
+            <div>
+                <h3 class="text-sm font-bold text-purple-400 mb-2">🌲 Hierarchical Tree Growth & 2D Grid Simulator</h3>
+                <div class="grid grid-cols-1 gap-1 mb-2 text-xs">
+                    <span>💰 Coins: <b id="t5-coins" class="text-amber-400">999</b>c</span>
+                    <span>🌱 Tile: <b id="t5-tile" class="text-purple-300">None selected</b></span>
+                    <span>📈 Stage: <b id="t5-stage" class="text-purple-300">Not Planted</b></span>
                 </div>
-                <div>
-                    <div class="flex justify-between text-xs font-semibold">
-                        <span class="flex items-center gap-1.5 text-emerald-300">Seed Inventory</span>
-                        <span id="seeds-text">0 / 100</span>
-                    </div>
-                    <div class="w-full bg-[#1b2219] h-2.5 rounded-full overflow-hidden">
-                        <div id="seeds-bar" class="bg-gradient-to-r from-emerald-500 to-lime-400 h-full rounded-full"
-                            style="width: 0%"></div>
-                    </div>
+                <div class="flex flex-col gap-1.5">
+                    <button onclick="pyodideInstance.runPython('t5_plant_selected()')"
+                        class="w-full px-2 py-1.5 bg-violet-700 hover:bg-violet-600 rounded text-xs font-semibold transition">🌱
+                        Plant Seed (Selected Tile)</button>
+                    <button onclick="pyodideInstance.runPython('t5_water_selected()')"
+                        class="w-full px-2 py-1.5 bg-indigo-600 hover:bg-indigo-500 rounded text-xs font-semibold transition">💧
+                        Water Plant (Step DFS)</button>
+                    <button onclick="pyodideInstance.runPython('t5_harvest_selected()')"
+                        class="w-full px-2 py-1.5 bg-amber-600 hover:bg-amber-500 rounded text-xs font-semibold transition">🌾
+                        Harvest (2x Return)</button>
+                    <button onclick="pyodideInstance.runPython('t5_refill_water()')"
+                        class="w-full px-2 py-1.5 bg-sky-700 hover:bg-sky-600 rounded text-xs font-semibold transition">🚰
+                        Refill Water (+50 L for 10c)</button>
                 </div>
-                <div>
-                    <div class="flex justify-between text-xs font-semibold">
-                        <span class="flex items-center gap-1.5 text-amber-300">Solar Energy</span>
-                        <span id="energy-text">0 / 120 Wh</span>
-                    </div>
-                    <div class="w-full bg-[#1b2219] h-2.5 rounded-full overflow-hidden">
-                        <div id="energy-bar" class="bg-gradient-to-r from-amber-500 to-yellow-300 h-full rounded-full"
-                            style="width: 0%"></div>
-                    </div>
+                <div class="mt-2 text-[10px] leading-snug text-purple-200/80">
+                    🌱 Plant = 1 seed &nbsp;·&nbsp; 💧 Water = 5 L (+5 Growth Score) &nbsp;·&nbsp; 🌾 Harvest = +2 seeds, +10 L
                 </div>
-                <div>
-                    <div class="flex justify-between text-xs font-semibold">
-                        <span class="flex items-center gap-1.5 text-rose-300">Community Hope</span>
-                        <span id="hope-text">0 / 100</span>
-                    </div>
-                    <div class="w-full bg-[#1b2219] h-2.5 rounded-full overflow-hidden">
-                        <div id="hope-bar" class="bg-gradient-to-r from-rose-500 to-pink-400 h-full rounded-full"
-                            style="width: 0%"></div>
-                    </div>
+            </div>
+
+            <div class="my-4 border-t border-purple-800/40"></div>
+
+            <!-- Plant BST summary -->
+            <div>
+                <h3 class="text-sm font-bold text-purple-400 mb-2">🌳 Plant BST (Growth Score)</h3>
+                <div class="grid grid-cols-1 gap-1 mb-2 text-xs">
+                    <span>🌳 Flowers in BST: <b id="t6-size" class="text-amber-400">0</b></span>
+                    <span>⭐ Root Score: <b id="t6-root" class="text-purple-300">—</b></span>
+                    <span>🌷 Ready to add: <b id="t6-ready-count" class="text-emerald-300">0</b></span>
                 </div>
-                <div>
-                    <div class="flex justify-between text-xs font-semibold">
-                        <span class="flex items-center gap-1.5 text-yellow-200">Coins / Dues</span>
-                        <span id="coins-text" class="text-yellow-200">0 Coins</span>
-                    </div>
-                </div>
+                <button onclick="switchTab('bst')" class="w-full px-2 py-1.5 bg-violet-700 hover:bg-violet-600 rounded text-xs font-semibold transition">🌳 Open Binary Search Trees (BST) &amp; Node Mutation</button>
+                <div class="mt-2 text-[10px] leading-snug text-purple-200/80">Only fully grown flowers can be added to the BST.</div>
             </div>
         </section>
         <!-- CENTER -->
         <section class="lg:col-span-6 flex flex-col gap-4">
-            <div class="flex bg-[#192218] p-1.5 rounded-xl border border-emerald-800/40 w-fit">
+            <div class="flex flex-wrap bg-[#1a1430] p-1.5 rounded-xl border border-purple-800/40 w-fit">
                 <button onclick="switchTab('game')" id="tab-game"
-                    class="px-4 py-1.5 rounded-lg text-xs font-bold bg-[#283623] text-emerald-100">Interactive
+                    class="px-4 py-1.5 rounded-lg text-xs font-bold bg-[#3b2a6b] text-purple-100">🌿 Interactive
                     Sanctuary</button>
                 <button onclick="switchTab('code')" id="tab-code"
-                    class="px-4 py-1.5 rounded-lg text-xs font-bold text-emerald-400/80 hover:text-emerald-100">Student
+                    class="px-4 py-1.5 rounded-lg text-xs font-bold text-purple-400/80 hover:text-purple-100">💻 Student
                     Code Editor</button>
+                <button onclick="switchTab('bst')" id="tab-bst"
+                    class="px-4 py-1.5 rounded-lg text-xs font-bold text-purple-400/80 hover:text-purple-100">🌳 BST &amp; Node Mutation</button>
             </div>
 
             <div id="view-game" class="glass-panel rounded-2xl p-6 min-h-[380px]">
-                <div class="flex items-center justify-between mb-4">
-                    <div>
-                        <h2 class="text-lg font-bold text-white">Sanctuary Garden Grid</h2>
-                        <p class="text-xs text-emerald-300">Click a tile to select it, then use the Topic 5 buttons below.</p>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <span class="text-xs text-emerald-300">Seed Bag:</span>
-                        <select id="crop-selector"
-                            class="bg-[#1b2219] border border-emerald-700 text-emerald-100 text-sm rounded-xl px-3 py-2">
-                        </select>
-                    </div>
+                <div class="mb-4">
+                    <h2 class="text-lg font-bold text-white">Sanctuary Garden Grid</h2>
+                    <p class="text-xs text-purple-300">Click a tile to select it, pick a flower from the Seed Bag up top, then use the buttons in the left sidebar.</p>
                 </div>
-                <div id="garden-grid" class="grid grid-cols-5 gap-3"></div>
+                <div id="garden-grid" class="grid grid-cols-7 gap-2"></div>
 
-                <!-- Topic 5: Interactive 2D Grid & Tree Growth Simulator Panel -->
-                <div class="mt-6 p-4 bg-gray-900 rounded-xl border border-emerald-800 text-white shadow-lg">
-                    <h3 class="text-lg font-bold text-emerald-400 mb-2">🌳 Topic 5: Hierarchical Tree Growth & 2D Grid
-                        Simulator</h3>
-                    <div class="flex items-center space-x-6 mb-3 text-sm">
-                        <span>💰 Coins: <b id="t5-coins" class="text-amber-400">999</b>c</span>
-                        <span>🌱 Active Tile: <b id="t5-tile" class="text-emerald-300">None selected</b></span>
-                        <span>📈 Growth Stage: <b id="t5-stage" class="text-purple-300">Not Planted</b></span>
-                    </div>
-                    <div class="flex flex-wrap gap-2">
-                        <button onclick="pyodideInstance.runPython('t5_plant_selected()')"
-                            class="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 rounded text-sm font-semibold transition">🌱
-                            Plant Seed (Selected Tile)</button>
-                        <button onclick="pyodideInstance.runPython('t5_water_selected()')"
-                            class="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 rounded text-sm font-semibold transition">💧
-                            Water Plant (Step DFS)</button>
-                        <button onclick="pyodideInstance.runPython('t5_harvest_selected()')"
-                            class="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 rounded text-sm font-semibold transition">🌾
-                            Harvest (2x Return)</button>
-                    </div>
-                    <div id="t5-log"
-                        class="mt-3 text-xs font-mono text-gray-300 bg-black/40 p-3 rounded border border-gray-800">
-                        <em>Instructions: Click a grid tile to select it, choose a flower from the Seed Bag dropdown
-                            above, then click 'Plant Seed'.</em>
-                    </div>
-                </div>
             </div>
 
             <div id="view-code" class="glass-panel rounded-2xl p-6 flex flex-col flex-grow hidden">
                 <h2 class="font-bold mb-3 flex items-center gap-2">
-                    <i data-lucide="code" class="w-5 h-5 text-emerald-400"></i> Student Code Editor (Lab)
+                    <i data-lucide="code" class="w-5 h-5 text-purple-400"></i> Student Code Editor (Lab)
                 </h2>
                 <select id="topic-selector" onchange="loadTopic()"
-                    class="w-full bg-[#1b2219] border border-emerald-700 rounded-xl p-3 mb-4 text-sm"></select>
+                    class="w-full bg-[#1a1430] border border-purple-700 rounded-xl p-3 mb-4 text-sm"></select>
                 <textarea id="code-editor"
-                    class="flex-1 bg-[#0a0f0a] border border-emerald-800 rounded-xl p-4 code-font text-sm font-medium leading-relaxed"
+                    class="flex-1 bg-[#0d0a1a] border border-purple-800 rounded-xl p-4 code-font text-sm font-medium leading-relaxed"
                     spellcheck="false"></textarea>
-                <button onclick="runPythonCode()"
-                    class="mt-4 bg-emerald-600 hover:bg-emerald-500 py-3 rounded-xl font-bold text-white flex items-center justify-center gap-2">
-                    <i data-lucide="play" class="w-4 h-4"></i> Run Python Code
-                </button>
+                <div class="mt-4 flex gap-2">
+                    <button onclick="runPythonCode()"
+                        class="flex-1 bg-purple-600 hover:bg-purple-500 py-3 rounded-xl font-bold text-white flex items-center justify-center gap-2">
+                        <i data-lucide="play" class="w-4 h-4"></i> Run Python Code
+                    </button>
+                    <button onclick="runAllCodes()"
+                        class="flex-1 bg-fuchsia-700 hover:bg-fuchsia-600 py-3 rounded-xl font-bold text-white flex items-center justify-center gap-2">
+                        <i data-lucide="fast-forward" class="w-4 h-4"></i> Run All Codes
+                    </button>
+                </div>
                 <div id="output-console"
-                    class="mt-4 bg-black/70 border border-emerald-900 rounded-xl p-4 text-xs max-h-48 overflow-auto font-mono whitespace-pre-wrap">
+                    class="mt-4 bg-black/70 border border-purple-900 rounded-xl p-4 text-xs max-h-48 overflow-auto font-mono whitespace-pre-wrap">
+                </div>
+            </div>
+            <div id="view-bst" class="glass-panel rounded-2xl p-6 flex flex-col hidden">
+                <h2 class="text-lg font-bold text-white">🌳 Binary Search Trees (BST) &amp; Node Mutation</h2>
+                <p class="text-xs text-purple-300 mb-1">Grow a flower → get its Growth Score → add it to your Plant BST. Rule: <b class="text-amber-300">LEFT &lt; ROOT &lt; RIGHT</b></p>
+                <p class="text-[11px] text-purple-200 mb-3">🌱 Plant → 🌿 Grow → 🌷 Fully grown → 🌳 Add to BST → 🔍 Search → ✨ Mutate → 🧭 Traverse</p>
+                <div class="bg-[#1a1430]/80 border border-purple-800/60 rounded-xl p-3">
+                    <h3 class="text-sm font-bold text-purple-300 mb-2">🌷 Fully Grown Flowers (ready for the BST)</h3>
+                    <div id="t6-ready" class="flex flex-wrap gap-2"></div>
+                </div>
+                <div id="genetics-lab" class="mt-6 pt-5 border-t border-purple-800/40">
+                    <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+                        <div>
+                            <h2 class="text-lg font-bold text-white">🌳 Your Plant BST</h2>
+                            <p class="text-xs text-purple-300">Each node stores a flower name and its Growth Score (the BST key).</p>
+                        </div>
+                        <div id="t6-stats"></div>
+                    </div>
+                    <div class="flex flex-wrap gap-2 mb-3">
+                        <input id="t6-search-input" type="number" min="1" max="999" placeholder="Growth Score…"
+                            onkeydown="if(event.key==='Enter')glCall('t6_search_from_ui')"
+                            class="w-32 bg-[#1a1430] border border-purple-700 rounded-lg px-2 py-1.5 text-xs">
+                        <button onclick="glCall('t6_search_from_ui')" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-xs font-bold">🔍 Search</button>
+                        <button onclick="glCall('t6_clear_path')" class="px-3 py-1.5 bg-[#2a2145] border border-purple-800 rounded-lg text-xs">Clear path</button>
+                    </div>
+                    <div id="t6-tree" class="gl-view" style="min-height:200px"></div>
+                    <div id="t6-msg" class="mt-3"></div>
+                    <div id="t6-steps" class="mt-2"></div>
+                    <div id="t6-mutator" class="mt-3"></div>
+                    <div id="t6-sorted" class="mt-3 text-xs"></div>
+
+                </div>
+
+                <!-- Tree Traversal demonstrations -->
+                <div id="t6-traversal" class="mt-5 bg-[#1a1430]/80 border border-purple-800/60 rounded-xl p-4">
+                    <div class="flex flex-wrap items-center justify-between gap-2 mb-1">
+                        <h3 class="text-sm font-bold text-purple-300">🧭 Tree Traversal: visit every flower</h3>
+                        <button onclick="clearTraversal()" class="px-2 py-1 bg-[#2a2145] border border-purple-800 rounded-lg text-[11px]">⏹ Stop / Clear</button>
+                    </div>
+                    <p class="text-[11px] text-purple-300 mb-3">Pick a traversal and watch the tree above light up one flower at a time.</p>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+                        <button data-kind="bfs" onclick="glTraverse('bfs')" class="t6-trav-btn px-3 py-2 rounded-xl bg-sky-700 hover:bg-sky-600 text-left font-bold transition"><span class="block text-sm">🌊 BFS</span><span class="block text-[10px] font-normal opacity-80">Level-Order · FIFO queue</span></button>
+                        <button data-kind="preorder" onclick="glTraverse('preorder')" class="t6-trav-btn px-3 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-left font-bold transition"><span class="block text-sm">🌱 Preorder</span><span class="block text-[10px] font-normal opacity-80">Root → Left → Right</span></button>
+                        <button data-kind="inorder" onclick="glTraverse('inorder')" class="t6-trav-btn px-3 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-left font-bold transition"><span class="block text-sm">🔢 Inorder</span><span class="block text-[10px] font-normal opacity-80">Left → Root → Right</span></button>
+                        <button data-kind="postorder" onclick="glTraverse('postorder')" class="t6-trav-btn px-3 py-2 rounded-xl bg-rose-700 hover:bg-rose-600 text-left font-bold transition"><span class="block text-sm">🍂 Postorder</span><span class="block text-[10px] font-normal opacity-80">Left → Right → Root</span></button>
+                    </div>
+                    <div id="t6-trav-info" class="mt-3 text-xs text-purple-200"></div>
+                    <div id="t6-trav-result" class="mt-2 min-h-[44px] bg-[#120e22] border border-purple-800/50 rounded-lg px-3 py-2 text-xs"></div>
                 </div>
             </div>
         </section>
         <!-- RIGHT PANEL -->
         <section class="lg:col-span-3 flex flex-col gap-4">
             <div id="climate-queue-panel" class="glass-panel rounded-2xl p-4">
-                <h3 class="font-bold text-emerald-400 mb-3 flex items-center gap-2">
+                <h3 class="font-bold text-purple-400 mb-3 flex items-center gap-2">
                     <i data-lucide="cloud-lightning" class="w-4 h-4"></i> Climate Queue (FIFO)
                 </h3>
                 <div id="climate-queue" class="space-y-3 text-sm"></div>
             </div>
-            <div id="stack-panel" class="glass-panel rounded-2xl p-4 flex-1 flex flex-col">
-                <h3 class="font-bold text-emerald-400 mb-3 flex items-center gap-2">
+            <div id="stack-panel" class="glass-panel rounded-2xl p-4">
+                <h3 class="font-bold text-purple-400 mb-2 flex items-center gap-2 text-sm">
                     <i data-lucide="history" class="w-4 h-4"></i> Action History (Stack)
                 </h3>
-                <div id="action-stack" class="flex-1 space-y-2 text-sm overflow-auto"></div>
+                <div id="action-stack" class="space-y-2.5 text-xs overflow-y-auto" style="max-height: 260px;"></div>
                 <button onclick="triggerUndo()"
-                    class="mt-4 w-full bg-[#2a3825] hover:bg-[#34462e] text-emerald-200 py-2.5 rounded-xl text-sm font-medium flex items-center justify-center gap-2 border border-emerald-800">
+                    class="mt-3 w-full bg-[#2a2145] hover:bg-[#372a5c] text-purple-200 py-2 rounded-xl text-xs font-medium flex items-center justify-center gap-2 border border-purple-800">
                     <i data-lucide="undo-2" class="w-4 h-4"></i> Undo (Stack Pop)
                 </button>
             </div>
         </section>
     </main>
     <script>
-        const APP_VERSION = "0.3.2";
+        const APP_VERSION = "0.7.3";
 
         let pyodideInstance = null;
         let gardenPlants = {};
         let displayActionHistory = [];
         let selectedPos = null;
+
+        // Single source of truth for the grid's dimensions, mirrored by
+        // ROWS/COLS in the Python side of Topics 4, 5 and 6.
+        const GRID_COLS = 7;
+        const GRID_ROWS = 7;
 
         // Base-template signature is addPlantToGrid(pos, name). Topic 4 passes
         // an emoji as the name, so use it as the tile icon when no explicit
@@ -225,26 +364,83 @@
             renderGarden();
         }
 
+        // Bridges used by Topic 6 (BST) so its Python code can read the
+        // currently selected tile and check whether it's empty, the same
+        // way Topic 5 reads state through js.document lookups.
+        function getSelectedPos() {
+            return selectedPos;
+        }
+
+        function isTileEmpty(pos) {
+            return !gardenPlants[pos];
+        }
+
+        // A plant is "mutated" when its emoji ends with this effect marker
+        // (Python appends it in Topic 6). The bridge signature stays
+        // addPlantToGrid(pos, name, emoji); only the drawing changes here.
+        const MUTATION_FX = "✨🦋";
+        // Soft glow colour per flower ("r,g,b"); anything else gets gold.
+        const AURA_COLORS = {
+            "🌸": "244,114,182",   // cherry blossom: pink
+            "🪷": "217,70,239",    // lotus: magenta
+            "🪻": "139,92,246",    // hyacinth: violet
+            "🌷": "251,90,120",    // tulip: rose
+            "🌹": "225,29,72",
+            "🌻": "250,204,21",
+            "🌼": "253,224,71"
+        };
+
         function renderGarden() {
             const grid = document.getElementById("garden-grid");
             grid.innerHTML = "";
 
-            for (let i = 0; i < 25; i++) {
+            for (let i = 0; i < GRID_ROWS * GRID_COLS; i++) {
                 const cell = document.createElement("div");
                 const isSelected = (i === selectedPos);
+                const plant = gardenPlants[i];
+                const emoji = plant ? (plant.emoji || "🌱") : "";
+                const isEnchanted = !!plant && emoji.endsWith(MUTATION_FX);
+
+                // Enchanted tiles get a deep midnight base so the coloured glow
+                // stays vivid instead of muddying against the green soil colour.
+                const baseSelected   = isEnchanted ? "bg-[#231c48]" : "bg-[#3d2f6e]";
+                const baseUnselected = isEnchanted ? "bg-[#171331] border border-purple-800" : "bg-[#2a2145] border border-purple-800 hover:bg-[#372a5c]";
                 cell.className = [
                     "aspect-square rounded-xl flex items-center justify-center text-3xl",
                     "cursor-pointer select-none transition-all duration-150",
                     isSelected
-                        ? "bg-[#3d5133] border-2 border-amber-400 ring-2 ring-amber-400/40 scale-105"
-                        : "bg-[#2a3825] border border-emerald-800 hover:bg-[#34462e]"
+                        ? `${baseSelected} border-2 border-purple-400 ring-2 ring-purple-400/50 scale-105`
+                        : baseUnselected
                 ].join(" ");
 
-                const plant = gardenPlants[i];
-
                 if (plant) {
-                    cell.textContent = plant.emoji || "🌱";
-                    cell.title = `${plant.name} – click to select this tile`;
+                    if (isEnchanted) {
+                        // Enchanted tile: plain flower in the middle, effects around it.
+                        const flower = emoji.slice(0, emoji.length - MUTATION_FX.length);
+                        const aura = AURA_COLORS[flower] || "251,191,36";
+                        cell.classList.add("enchanted");
+                        cell.style.setProperty("--aura", aura);
+                        if (!isSelected) cell.style.borderColor = `rgba(${aura}, .85)`;
+
+                        const parts = [
+                            ["aura", ""],
+                            ["bloom", flower],
+                            ["fx fx-spark-a", "✨"],
+                            ["fx fx-spark-b", "✨"],
+                            ["fx fx-spark-c", "✨"],
+                            ["fx fx-butterfly", "🦋"]
+                        ];
+                        parts.forEach(([cls, text]) => {
+                            const el = document.createElement("span");
+                            el.className = cls;
+                            el.textContent = text;
+                            cell.appendChild(el);
+                        });
+                        cell.title = `${plant.name} ✨ enchanted – click to select this tile`;
+                    } else {
+                        cell.textContent = emoji;
+                        cell.title = `${plant.name} – click to select this tile`;
+                    }
                 } else {
                     cell.textContent = "⬜";
                     cell.title = "Empty soil – click to select this tile";
@@ -259,8 +455,8 @@
         // are done through the Topic 5 buttons so the Python tree-growth
         // state stays in charge of what actually appears on the grid.
         function handleGardenClick(pos) {
-            const row = Math.floor(pos / 5);
-            const col = pos % 5;
+            const row = Math.floor(pos / GRID_COLS);
+            const col = pos % GRID_COLS;
 
             selectedPos = pos;
             renderGarden();
@@ -272,11 +468,217 @@
             }
         }
 
+        // ---- Plant Genetics Lab (BST) rendering; Python sends the tree as JSON ----
+        function glCall(fn) {
+            if (!pyodideInstance || !pyodideInstance.globals.has(fn)) { showToast("Python is still loading..."); return; }
+            pyodideInstance.globals.get(fn)();
+        }
+        function glAdd(pos) {
+            if (!pyodideInstance || !pyodideInstance.globals.has("t6_add_to_bst")) { showToast("Python is still loading..."); return; }
+            pyodideInstance.globals.get("t6_add_to_bst")(pos);
+        }
+        function renderReadyFlowers(json) {
+            const list = JSON.parse(json), box = document.getElementById("t6-ready");
+            document.getElementById("t6-ready-count").textContent = list.length;
+            box.innerHTML = list.length ? list.map(f => `<div class="bg-[#2a2145] border border-purple-700 rounded-xl px-3 py-2 text-center text-xs">
+                <div class="text-2xl">${f.emoji}</div><div class="font-bold">${glEsc(f.name)}</div>
+                <div>Growth Score: <b class="text-amber-300">${f.score}</b></div><div class="text-purple-300">tile (${f.tile})</div>
+                <button onclick="glAdd(${f.pos})" class="mt-1 px-2 py-1 bg-violet-700 hover:bg-violet-600 rounded-lg font-bold">🌳 Add to BST</button></div>`).join("")
+                : '<span class="text-xs text-purple-300/80 italic">No fully grown flowers yet. In the Interactive Sanctuary, plant a flower and water it 4 times.</span>';
+        }
+        function glPick(id) {
+            if (pyodideInstance && pyodideInstance.globals.has("t6_select_node")) pyodideInstance.globals.get("t6_select_node")(id);
+        }
+        function glEsc(t) { return String(t).replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c])); }
+
+        function renderGeneticsLab(json) {
+            const s = JSON.parse(json), by = {};
+            s.nodes.forEach(n => by[n.id] = n);
+            const W = 116, H = 124, P = 30, CH = 92;
+            let k = 0, maxD = 0;
+            (function lay(id, d) {
+                if (id == null) return;
+                const n = by[id];
+                lay(n.left, d + 1); n.x = k++; n.d = d; maxD = Math.max(maxD, d); lay(n.right, d + 1);
+            })(s.root, 0);
+            const cx = n => P + n.x * W + W / 2, ty = d => 10 + d * H;
+            const p = s.path, order = {};
+            if (p) p.ids.forEach((id, i) => order[id] = i);
+            const lastId = p && p.ids.length ? p.ids[p.ids.length - 1] : null;
+            let ghost = null, depthMax = maxD;
+            if (p && p.ghost) {
+                const g = by[p.ghost.parent];
+                ghost = { x: cx(g) + (p.ghost.side === "left" ? -1 : 1) * W * 0.5, d: g.d + 1, from: g };
+                depthMax = Math.max(depthMax, ghost.d);
+            }
+            const width = Math.max(k * W + 2 * P, 300), height = ty(depthMax) + CH + 14;
+            const curve = (x1, y1, x2, y2, cls) => {
+                const m = (y1 + CH + y2) / 2;
+                return `<path class="gl-edge ${cls}" d="M${x1} ${y1 + CH} C${x1} ${m} ${x2} ${m} ${x2} ${y2}"/>`;
+            };
+            let svg = "", cards = "";
+            const inorder = [];
+            s.nodes.forEach(n => { if (n.x !== undefined) inorder.push(n); });
+            inorder.sort((a, b) => a.x - b.x);
+
+            inorder.forEach(n => {
+                [n.left, n.right].forEach(cid => {
+                    if (cid == null) return;
+                    const c = by[cid];
+                    let cls = "";
+                    if (order[cid] !== undefined && order[n.id] !== undefined && order[cid] === order[n.id] + 1) cls += " path";
+                    if (cid === s.broken) cls += " bad";
+                    svg += curve(cx(n), ty(n.d), cx(c), ty(c.d), cls);
+                });
+                const onPath = order[n.id] !== undefined;
+                const cls = ["gl-node", s.selected === n.id ? "sel" : "", onPath ? "path" : "",
+                    (p && p.result === "found" && n.id === lastId) ? "found" : "",
+                    s.broken === n.id ? "bad" : "", s.pop === n.id ? "pop" : "",
+                    (onPath && p.fresh && s.pop !== n.id) ? "in" : ""].join(" ");
+                const delay = onPath && p.fresh ? `animation-delay:${order[n.id] * 0.35}s;` : "";
+                cards += `<div class="${cls}" data-id="${n.id}" style="left:${cx(n) - 50}px;top:${ty(n.d)}px;${delay}" onclick="glPick(${n.id},${n.pos})" title="${glEsc(n.name)} · tile (${n.tile})">
+                    ${onPath ? `<div class="b">${order[n.id] + 1}</div>` : ""}
+                    ${n.id === s.root ? '<div class="c">👑</div>' : ""}
+                    <div class="e">${n.mutated ? "✨" : ""}${n.emoji}</div><div class="s">${n.score}</div>
+                    <div class="n">${glEsc(n.name)}</div></div>`;
+            });
+            if (ghost) {
+                svg += curve(cx(ghost.from), ty(ghost.from.d), ghost.x, ty(ghost.d), "path");
+                cards += `<div class="gl-node ghost" style="left:${ghost.x - 50}px;top:${ty(ghost.d)}px">❔<br>${p.target}<br>not here</div>`;
+            }
+            const tree = document.getElementById("t6-tree");
+            tree.innerHTML = s.nodes.length
+                ? `<div class="gl-canvas" style="width:${width}px;height:${height}px"><svg width="${width}" height="${height}">${svg}</svg>${cards}</div>`
+                : '<div class="p-10 text-center text-sm text-purple-300">🌱 The BST is empty. Grow a flower in the Sanctuary, then press <b>Add to BST</b> above.</div>';
+
+            // stats
+            const h = s.nodes.length ? maxD + 1 : 0;
+            document.getElementById("t6-stats").innerHTML =
+                `<span class="gl-chip">🌳 ${s.nodes.length} plants</span><span class="gl-chip">📏 height ${h}</span>` +
+                `<span class="gl-chip">👑 root ${s.root != null ? by[s.root].score : "—"}</span>` +
+                `<span class="gl-chip" style="color:${s.valid ? "#6ee7b7" : "#fca5a5"}">${s.valid ? "✅ Valid BST" : "❌ Broken BST"}</span>`;
+            const live = document.getElementById("t6-bigO-live");
+            if (live) live.textContent = s.nodes.length
+                ? `Your lab right now: n = ${s.nodes.length}, h = ${h} → search/insert need at most ${h} comparison${h > 1 ? "s" : ""}. A perfectly balanced tree of ${s.nodes.length} would need ${Math.floor(Math.log2(s.nodes.length)) + 1}.` : "";
+
+            // message + path steps
+            const m = document.getElementById("t6-msg");
+            m.innerHTML = s.message ? `<div class="gl-msg-${s.message.kind} border rounded-lg px-3 py-2 text-xs whitespace-pre-line">${glEsc(s.message.text)}</div>` : "";
+            const st = document.getElementById("t6-steps");
+            st.innerHTML = p ? `<div class="bg-[#1a1430] border border-purple-800/60 rounded-lg px-3 py-2 text-xs">
+                <div class="font-bold text-amber-300 mb-1">${{ search: "🔍 Search path", insert: "➕ Insertion path", reinsert: "🔧 Reinsertion path" }[p.kind]} for ${p.target}
+                · ${p.steps.length} step${p.steps.length === 1 ? "" : "s"}</div>
+                ${p.steps.map((x, i) => `<div><span class="gl-chip">${i + 1}</span>${x.emoji} <b>${x.score}</b> · ${glEsc(x.text)}</div>`).join("")}</div>` : "";
+
+            // mutator / fix panel
+            const mu = document.getElementById("t6-mutator"), sel = by[s.selected];
+            if (s.broken != null) {
+                const b = by[s.broken];
+                mu.innerHTML = `<div class="gl-msg-bad border rounded-lg px-3 py-3 text-xs">
+                    <div class="font-bold text-red-300 text-sm">❌ BST rule broken by ${b.emoji} ${b.name} (score ${b.orig} → ${b.score})</div>
+                    <ul class="mt-1 list-disc pl-5">${s.reasons.map(r => `<li>${glEsc(r)}</li>`).join("")}</ul>
+                    <button onclick="glCall('t6_fix_tree')" class="mt-2 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 rounded-lg font-bold">🔧 Remove &amp; Reinsert ${b.score}</button></div>`;
+            } else if (sel) {
+                const L = by[sel.left], R = by[sel.right];
+                const f = x => x ? `${x.emoji} ${glEsc(x.name)} (${x.score})` : "None";
+                mu.innerHTML = `<div class="bg-[#1a1430] border border-fuchsia-700/60 rounded-lg px-3 py-3 text-xs">
+                    <div class="font-bold text-fuchsia-300 text-sm mb-1">${sel.emoji} ${glEsc(sel.name)}</div>
+                    <div>Growth Score: <b class="text-amber-300">${sel.score}</b> · Tile (${sel.tile})</div>
+                    <div>Left: ${f(L)}</div><div>Right: ${f(R)}</div>
+                    <div class="mt-2 flex flex-wrap items-center gap-2">
+                    <button onclick="glCall('t6_mutate_from_ui')" ${sel.mutated ? "disabled" : ""} class="px-3 py-1.5 bg-fuchsia-600 hover:bg-fuchsia-500 rounded-lg font-bold disabled:opacity-40">✨ Mutate Node</button>
+                    <span class="text-purple-300">${sel.mutated ? "Mutated. The score never changed." : "Changes the name only. The score stays " + sel.score + "."}</span></div></div>`;
+            } else {
+                mu.innerHTML = '<div class="text-xs text-purple-300/80 italic">👆 Click a flower card in the BST to see its info and mutate it.</div>';
+            }
+
+            // in-order strip
+            document.getElementById("t6-sorted").innerHTML = inorder.length
+                ? `<span class="text-purple-300">In-order (Left → Root → Right): </span>` +
+                inorder.map((n, i) => `<span class="gl-chip" style="${i && n.score <= inorder[i - 1].score ? "border-color:#f87171;color:#fca5a5" : ""}">${n.emoji} ${n.score}</span>`).join("→") +
+                (s.valid ? ' <span class="text-emerald-300">sorted ✓</span>' : ' <span class="text-red-300">not sorted — broken</span>') : "";
+            syncTraversal(s);
+        }
+
+        // ---- Tree traversal animation: Python sends the visit order, JS highlights it step by step ----
+        const TRAV_DELAY = 450;           // milliseconds between steps
+        let travState = null;             // { kind, label, rule, note, steps, shown, running, timer, sig }
+        let lastTreeSig = "";
+
+        function glTraverse(kind) {
+            if (!pyodideInstance || !pyodideInstance.globals.has("t6_traverse")) { showToast("Python is still loading..."); return; }
+            pyodideInstance.globals.get("t6_traverse")(kind);
+        }
+        function stopTraversal() {
+            if (travState && travState.timer) clearTimeout(travState.timer);
+            travState = null;
+        }
+        function clearTraversal() { stopTraversal(); paintTraversal(); }
+
+        function runTraversal(json) {
+            const d = JSON.parse(json);
+            stopTraversal();
+            travState = { kind: d.kind, label: d.label, rule: d.rule, note: d.note, steps: d.steps,
+                          shown: 0, running: true, timer: null, sig: lastTreeSig };
+            const tree = document.getElementById("t6-tree");
+            if (tree) tree.scrollIntoView({ behavior: "smooth", block: "nearest" });
+            stepTraversal();
+        }
+        function stepTraversal() {
+            const t = travState;
+            if (!t) return;
+            if (t.shown >= t.steps.length) { t.running = false; t.timer = null; paintTraversal(); return; }
+            t.shown++;
+            paintTraversal();
+            t.timer = setTimeout(stepTraversal, TRAV_DELAY);
+        }
+        // Called after every tree re-render: drop the traversal if the tree changed, else re-apply highlights
+        function syncTraversal(s) {
+            lastTreeSig = s.nodes.map(n => `${n.id}:${n.left}:${n.right}:${n.name}`).join("|");
+            if (travState && travState.sig !== lastTreeSig) stopTraversal();
+            paintTraversal();
+        }
+        function paintTraversal() {
+            document.querySelectorAll("#t6-tree .gl-node").forEach(el => {
+                el.classList.remove("trav-cur", "trav-done");
+                const old = el.querySelector(".tb");
+                if (old) old.remove();
+            });
+            document.querySelectorAll(".t6-trav-btn").forEach(b => {
+                const on = !!(travState && travState.kind === b.dataset.kind);
+                b.classList.toggle("ring-2", on); b.classList.toggle("ring-white", on);
+            });
+            const info = document.getElementById("t6-trav-info"), box = document.getElementById("t6-trav-result");
+            if (!info || !box) return;
+            const t = travState;
+            if (!t) {
+                info.innerHTML = "";
+                box.innerHTML = '<span class="text-purple-300/80 italic">Click BFS, Preorder, Inorder or Postorder. The visit order will appear here.</span>';
+                return;
+            }
+            const shown = t.steps.slice(0, t.shown);
+            shown.forEach((st, i) => {
+                const el = document.querySelector(`#t6-tree .gl-node[data-id="${st.id}"]`);
+                if (!el) return;
+                el.classList.add(t.running && i === shown.length - 1 ? "trav-cur" : "trav-done");
+                const b = document.createElement("div");
+                b.className = "tb"; b.textContent = i + 1;
+                el.appendChild(b);
+            });
+            info.innerHTML = `<b class="text-amber-300">${glEsc(t.label)}</b> · ${glEsc(t.rule)}<br><span class="text-purple-300">${glEsc(t.note)}</span>`;
+            const n = t.steps.length;
+            const status = t.running ? `▶ Visiting flower ${t.shown} of ${n}…` : `✅ Done: ${n} flower${n === 1 ? "" : "s"} visited`;
+            box.innerHTML = `<div class="mb-1 font-bold ${t.running ? "text-amber-300" : "text-emerald-300"}">${status}</div>` +
+                shown.map((st, i) => {
+                    const cur = t.running && i === shown.length - 1;
+                    return `<span class="gl-chip" style="${cur ? "border-color:#fde047;color:#fde68a" : "border-color:#38bdf8"}" title="${glEsc(st.name)}">${i + 1}. ${st.emoji} ${st.score}</span>`;
+                }).join('<span class="text-purple-400"> → </span>');
+        }
+
         const topicTemplates = {
             1: {
                 title: "Python OOP + Big O + Stacks",
                 code: `# Topic 1: Python OOP + Big O + Stacks
-
 class ActionHistoryStack:
     def __init__(self):
         self.action_history_stack = []
@@ -300,9 +702,6 @@ class ActionHistoryStack:
         return len(self.action_history_stack) == 0 
 
 stack = ActionHistoryStack()
-stack.push_action("Planted at [1][2]")
-stack.push_action("Planted at [2][3]")
-stack.peek()
 print("\\nAction History Stack ready!\\n")
 `
             },
@@ -343,13 +742,16 @@ class Plant:
         print(f"A plant '{self.name}' is created.\\n")
 
 flower_plant = Plant("Forget me not", 70)
-updateResources(water=200, seeds=90, energy=110, hope=80, coins=999)
+updateResources(water=120, seeds=120, energy=120, hope=80, coins=999)
 
 addPlantsToDropdown([
     ("Cherry Blossom", "🌸", 6),
     ("Lotus", "🪷", 10),
     ("Hyacinth", "🪻", 15),
-    ("Tulip", "🌷", 20)
+    ("Tulip", "🌷", 20),
+    ("Rose", "🌹", 12),
+    ("Sunflower", "🌻", 8),
+    ("Daisy", "🌼", 5)
 ])
 
 print("Resource Storage and Plant dropdown unlocked!")
@@ -358,12 +760,13 @@ print("Resource Storage and Plant dropdown unlocked!")
             4: {
                 title: "Static/Dynamic Arrays, 2D Lists, & Memory Structures",
                 code: `# Topic 4: Static/Dynamic Arrays, 2D Lists, & Memory Structures
+# ==== WRITE YOUR CODE HERE ====
 
-# 1. Static-style 2D array (fixed 5x5 garden grid using list of lists)
-ROWS, COLS = 5, 5
+# 1. Static-style 2D array (fixed 7x7 garden grid using list of lists)
+ROWS, COLS = 7, 7
 garden_grid = [["⬜" for _ in range(COLS)] for _ in range(ROWS)]
 
-print("Initialized a 5x5 static-style 2D garden grid (list of lists).")
+print("Initialized a 7x7 static-style 2D garden grid (list of lists).")
 print(f"Memory layout: {ROWS} rows x {COLS} columns = {ROWS * COLS} cells\\n")
 
 # 2. Helper function to plant a crop and sync with the JavaScript UI bridge
@@ -384,12 +787,7 @@ for seed in new_seeds:
     seed_bank.append(seed)
     print(f"  Appended -> {seed} (Current length = {len(seed_bank)})")
 
-# 4. Executing planting operations using the 2D grid structure
-print("\\nExecuting planting operations on the 2D grid:")
-plant_at(0, 2, "🌸")
-plant_at(1, 1, "🪷")
-plant_at(2, 2, "🌷")
-plant_at(3, 3, "🪻")
+# 4. plant_at(row, col, crop) is ready. Nothing is planted until YOU call it.
 
 # 5. Memory layout & row-major traversal demonstration
 print("\\nRow-major traversal of the 2D grid (Memory Locality Demo):")
@@ -405,6 +803,7 @@ print("\\nStatic 2D grid and dynamic seed bank initialized successfully!")
                 code: `# Topic 5: Hierarchical Trees & Traversals (2D Grid & Growth Simulation)
 import js
 import re
+from collections import deque   # a queue, used by BFS
 
 class TreeNode:
     def __init__(self, name, emoji, stage_level):
@@ -426,16 +825,90 @@ root.add_child(seedling)
 seedling.add_child(sprout)
 sprout.add_child(bud)
 
-ROWS, COLS = 5, 5
+# ---------- Tree traversals (BFS + 3 kinds of DFS) ----------
+# Each function takes the ROOT of a binary tree (any node with .left and .right)
+# and returns the nodes in the order they are visited.
+# Topic 6 uses these to walk the Plant BST.
+def bfs(root):
+    # Breadth-First (Level-Order): top to bottom, left to right, using a FIFO queue
+    result = []
+    queue = deque()
+    if root is not None:
+        queue.append(root)
+    while queue:
+        node = queue.popleft()            # first in, first out
+        result.append(node)
+        if node.left is not None:
+            queue.append(node.left)       # children wait at the back of the line
+        if node.right is not None:
+            queue.append(node.right)
+    return result
+
+def preorder(root):
+    # DFS Preorder: Root -> Left -> Right
+    result = []
+    def visit(node):
+        if node is None:
+            return
+        result.append(node)               # Root
+        visit(node.left)                  # Left
+        visit(node.right)                 # Right
+    visit(root)
+    return result
+
+def inorder(root):
+    # DFS Inorder: Left -> Root -> Right (comes out sorted by Growth Score on a BST)
+    result = []
+    def visit(node):
+        if node is None:
+            return
+        visit(node.left)                  # Left
+        result.append(node)               # Root
+        visit(node.right)                 # Right
+    visit(root)
+    return result
+
+def postorder(root):
+    # DFS Postorder: Left -> Right -> Root
+    result = []
+    def visit(node):
+        if node is None:
+            return
+        visit(node.left)                  # Left
+        visit(node.right)                 # Right
+        result.append(node)               # Root
+    visit(root)
+    return result
+
+ROWS, COLS = 7, 7
+
+# ---- Resource economy (drives the Water Reserves and Seed Inventory bars) ----
+WATER_MAX, SEEDS_MAX, ENERGY_MAX = 120, 120, 120
+WATERING_BONUS = 5         # every successful watering adds +5 Growth Score
+SEEDS_PER_PLANT = 1        # planting a seed uses 1 from the Seed Inventory
+WATER_PER_WATERING = 5     # each watering uses 5 L  (a full plant = 4 waterings = 20 L)
+HARVEST_SEED_YIELD = 2     # a harvest gives back 2 seeds saved from the bloom
+HARVEST_WATER_RECOVERED = 10   # ...and 10 L recovered from the soil
+REFILL_WATER_AMOUNT = 50   # buying water: +50 L
+REFILL_WATER_COST = 10     # ...for 10 coins
+
 if "t5_state" not in globals():
     global t5_state
     t5_state = {
         "coins": 999,
+        "water": WATER_MAX,
+        "seeds": SEEDS_MAX,
         "grid_data": [[None for _ in range(COLS)] for _ in range(ROWS)],
         "active_pos": None
     }
 
-def t5_refresh_ui(msg):
+def t5_refresh_ui():
+    """
+    Refreshes only the LIVE stat readouts (coins / selected tile / growth
+    stage). There is no dedicated log box anymore -- every notification,
+    warning, or success message is pushed straight into the unified
+    Action History Stack via pushAction() at each call site instead.
+    """
     try:
         js.document.getElementById("t5-coins").innerText = str(t5_state["coins"])
         pos = t5_state["active_pos"]
@@ -446,15 +919,16 @@ def t5_refresh_ui(msg):
             if plant:
                 stage_name = plant["stages"][plant["stage_index"]]["name"]
                 stage_emoji = plant["stages"][plant["stage_index"]]["emoji"]
-                js.document.getElementById("t5-stage").innerText = f"{stage_emoji} {stage_name} (Watered {plant['stage_index']}/4)"
+                js.document.getElementById("t5-stage").innerText = f"{stage_emoji} {stage_name} (Watered {plant['stage_index']}/4) | Growth Score {plant['growth_score']}"
             else:
                 js.document.getElementById("t5-stage").innerText = "Empty Soil"
         else:
             js.document.getElementById("t5-tile").innerText = "None selected"
             js.document.getElementById("t5-stage").innerText = "Not Selected"
-        
-        js.document.getElementById("t5-log").innerHTML = msg
-        updateResources(water=200, seeds=90, energy=110, hope=80, coins=t5_state["coins"])
+
+        updateResources(water=t5_state["water"], seeds=t5_state["seeds"], energy=ENERGY_MAX, hope=80, coins=t5_state["coins"])
+        if "t6_refresh" in globals():
+            t6_refresh()
     except Exception as e:
         print(f"UI Error: {e}")
 
@@ -464,25 +938,28 @@ def t5_select_tile(pos):
     r, c = divmod(pos, COLS)
     plant = t5_state["grid_data"][r][c]
     if plant:
-        t5_refresh_ui(f"📍 Selected tile ({r}, {c}). Contains: {plant['final_name']}. Ready to water or harvest.")
+        t5_refresh_ui()
     else:
-        t5_refresh_ui(f"📍 Selected empty soil at ({r}, {c}). Choose a seed from the dropdown above and click Plant Seed.")
+        t5_refresh_ui()
 
 def t5_plant_selected():
     global t5_state
     pos = t5_state["active_pos"]
     if pos is None:
-        t5_refresh_ui("⚠️ Please click a tile on the sanctuary grid first to select where to plant!")
+        pushAction("⚠️ Click a tile on the grid first.")
+        t5_refresh_ui()
         return
     
     r, c = divmod(pos, COLS)
     if t5_state["grid_data"][r][c] is not None:
-        t5_refresh_ui("⚠️ This tile already has a growing plant!")
+        pushAction("⚠️ This tile already has a plant.")
+        t5_refresh_ui()
         return
 
     select_el = js.document.getElementById("crop-selector")
     if select_el is None or select_el.selectedIndex is None or select_el.selectedIndex < 0:
-        t5_refresh_ui("⚠️ Seed Bag is empty. Pick a flower from the dropdown first!")
+        pushAction("⚠️ Pick a flower from the Seed Bag first.")
+        t5_refresh_ui()
         return
 
     try:
@@ -497,14 +974,22 @@ def t5_plant_selected():
         final_emoji = parts[0] if parts else "🌸"
     except Exception as e:
         # Report the real problem instead of silently planting a default flower.
-        t5_refresh_ui(f"❌ Could not read the Seed Bag selection: {e}")
+        pushAction(f"❌ Could not read the Seed Bag selection: {e}")
+        t5_refresh_ui()
         return
 
     if t5_state["coins"] < cost:
-        t5_refresh_ui(f"❌ Not enough coins! {crop_name} costs {cost}c, but you have {t5_state['coins']}c.")
+        pushAction(f"❌ Not enough coins.\\n{crop_name} costs {cost}c, you have {t5_state['coins']}c.")
+        t5_refresh_ui()
+        return
+
+    if t5_state["seeds"] < SEEDS_PER_PLANT:
+        pushAction("❌ Out of seeds.\\nHarvest a bloomed plant to get more.")
+        t5_refresh_ui()
         return
 
     t5_state["coins"] -= cost
+    t5_state["seeds"] -= SEEDS_PER_PLANT
 
     stages = [
         {"name": "Seed", "emoji": "🌰"},
@@ -517,82 +1002,409 @@ def t5_plant_selected():
     t5_state["grid_data"][r][c] = {
         "final_name": crop_name,
         "cost": cost,
+        "growth_score": cost,      # starts as the Flower Coin Value, +5 per watering
         "stages": stages,
         "stage_index": 0
     }
 
     addPlantToGrid(pos, "Seed", "🌰")
-    pushAction(f"Planted {crop_name} seed at ({r},{c}) [-{cost}c]")
-    t5_refresh_ui(f"🌱 Planted {crop_name} Seed (🌰) at Row {r}, Col {c}! Cost: {cost}c. Now click 'Water Plant' 4 times.")
+    pushAction(f"Planted {crop_name} seed at ({r},{c}) [-{cost}c, -{SEEDS_PER_PLANT} seed]")
+    pushAction(f"🌱 {crop_name} planted.\\nWater it 4 times 💧")
+    t5_refresh_ui()
 
 def t5_water_selected():
     global t5_state
     pos = t5_state["active_pos"]
     if pos is None:
-        t5_refresh_ui("⚠️ Select a planted tile first!")
+        pushAction("⚠️ Select a planted tile first.")
+        t5_refresh_ui()
         return
     
     r, c = divmod(pos, COLS)
     plant = t5_state["grid_data"][r][c]
     if not plant:
-        t5_refresh_ui("⚠️ No plant found on this tile. Plant a seed first!")
+        pushAction("⚠️ No plant on this tile.")
+        t5_refresh_ui()
         return
 
     max_index = len(plant["stages"]) - 1
     if plant["stage_index"] < max_index:
+        if t5_state["water"] < WATER_PER_WATERING:
+            pushAction(f"❌ Not enough water ({t5_state['water']} L left).\\nRefill or harvest a bloomed plant.")
+            t5_refresh_ui()
+            return
+
+        t5_state["water"] -= WATER_PER_WATERING
         plant["stage_index"] += 1
+        plant["growth_score"] += WATERING_BONUS
         current_stage = plant["stages"][plant["stage_index"]]
         
         addPlantToGrid(pos, current_stage["name"], current_stage["emoji"])
-        pushAction(f"Watered tile ({r},{c}) -> DFS Traversed to {current_stage['name']}")
+        pushAction(f"Watered ({r},{c}) [-{WATER_PER_WATERING} L]")
         
         if plant["stage_index"] == max_index:
-            t5_refresh_ui(f"🌸 Fully bloomed into {current_stage['name']}! Ready for harvest.")
+            pushAction(f"🌸 {plant['final_name']} fully bloomed!\\nGrowth Score {plant['growth_score']}. Ready for the BST.")
+            t5_refresh_ui()
         else:
-            t5_refresh_ui(f"💧 Watered! Tree traversal advanced to stage: <b>{current_stage['emoji']} {current_stage['name']}</b> ({plant['stage_index']}/4)")
+            pushAction(f"💧 {current_stage['emoji']} {current_stage['name']} ({plant['stage_index']}/4)\\nGrowth Score +{WATERING_BONUS} = {plant['growth_score']}")
+            t5_refresh_ui()
     else:
-        t5_refresh_ui(f"🌸 Plant is already fully bloomed. Click Harvest!")
+        pushAction("🌸 Already fully bloomed.")
+        t5_refresh_ui()
 
 def t5_harvest_selected():
     global t5_state
     pos = t5_state["active_pos"]
     if pos is None:
-        t5_refresh_ui("⚠️ Select a tile to harvest!")
+        pushAction("⚠️ Select a tile to harvest.")
+        t5_refresh_ui()
         return
     
     r, c = divmod(pos, COLS)
     plant = t5_state["grid_data"][r][c]
     if not plant:
-        t5_refresh_ui("⚠️ Nothing to harvest on this tile!")
+        pushAction("⚠️ Nothing to harvest here.")
+        t5_refresh_ui()
         return
 
     max_index = len(plant["stages"]) - 1
     if plant["stage_index"] < max_index:
-        t5_refresh_ui(f"⚠️ Plant is not fully bloomed yet! Water it until stage 4.")
+        pushAction("⚠️ Not fully bloomed yet.")
+        t5_refresh_ui()
+        return
+
+    if "t6_in_bst" in globals() and t6_in_bst(pos):
+        pushAction("🌳 BST flowers stay in the garden.")
+        t5_refresh_ui()
         return
 
     reward = plant["cost"] * 2
     t5_state["coins"] += reward
+    t5_state["seeds"] = min(SEEDS_MAX, t5_state["seeds"] + HARVEST_SEED_YIELD)
+    t5_state["water"] = min(WATER_MAX, t5_state["water"] + HARVEST_WATER_RECOVERED)
     
     t5_state["grid_data"][r][c] = None
     clearGridTile(pos)
-    
-    pushAction(f"Harvested {plant['final_name']} at ({r},{c}) [+{reward} coins (2x)]")
-    t5_refresh_ui(f"🌾 Harvest successful! Earned +{reward} coins (2x return of {plant['cost']}c cost). Tile cleared and ready to replant.")
 
+    pushAction(f"Harvested {plant['final_name']} at ({r},{c}) [+{reward} coins, +{HARVEST_SEED_YIELD} seeds, +{HARVEST_WATER_RECOVERED} L]")
+    pushAction(f"🌾 Harvested!\\n+{reward}c · +{HARVEST_SEED_YIELD} seeds · +{HARVEST_WATER_RECOVERED} L")
+    t5_refresh_ui()
+
+def t5_refill_water():
+    global t5_state
+    if t5_state["water"] >= WATER_MAX:
+        pushAction("💧 Water tank is full.")
+        t5_refresh_ui()
+        return
+    if t5_state["coins"] < REFILL_WATER_COST:
+        pushAction(f"❌ Need {REFILL_WATER_COST}c to refill.")
+        t5_refresh_ui()
+        return
+    t5_state["coins"] -= REFILL_WATER_COST
+    gained = min(REFILL_WATER_AMOUNT, WATER_MAX - t5_state["water"])
+    t5_state["water"] += gained
+    pushAction(f"Refilled water tank [+{gained} L, -{REFILL_WATER_COST}c]")
+    pushAction(f"💧 Refilled +{gained} L (-{REFILL_WATER_COST}c)")
+    t5_refresh_ui()
+
+globals()['t5_refill_water'] = t5_refill_water
 globals()['t5_plant_selected'] = t5_plant_selected
 globals()['t5_water_selected'] = t5_water_selected
 globals()['t5_harvest_selected'] = t5_harvest_selected
 globals()['t5_select_tile'] = t5_select_tile
 
 print("=== TOPIC 5: HIERARCHICAL TREES & 2D GRID GROWTH LOADED ===")
-t5_refresh_ui("System ready. Click any tile on the Sanctuary Garden Grid to begin.")
+t5_refresh_ui()
 `
             },
             6: {
                 title: "Binary Search Trees (BST) & Node Mutation",
-                code: `# Topic 6: Binary Search Trees (BST) & Node Mutation
-# ==== WRITE YOUR CODE HERE ====
+                code: `# Topic 6: Binary Search Trees (BST) & Node Mutation -- your Plant BST
+# Rule: LEFT < ROOT < RIGHT. The Growth Score is the BST key.
+import js
+import json
+
+ROWS, COLS = 7, 7
+MUTATION_FX = "✨🦋"
+
+# Growth Score = Flower Coin Value + Watering Bonus (+5 for every successful watering).
+# Example: Tulip costs 20c and needs 4 waterings -> 20 + 4 * 5 = 40
+def calculate_growth_score(coin_value, waterings):
+    return coin_value + waterings * 5
+
+# Mutation swaps the NAME stored in the node. It never touches the score.
+MUTATED_NAME = {"Tulip": "Crystal Tulip", "Lotus": "Moon Lotus", "Hyacinth": "Mystic Hyacinth",
+                "Cherry Blossom": "Golden Cherry Blossom", "Rose": "Crystal Rose",
+                "Sunflower": "Solar Sunflower", "Daisy": "Starlight Daisy"}
+
+# ============ PART 1: the BST (read me, edit me, explain me) ============
+class BSTNode:
+    def __init__(self, plant_name, growth_score):
+        self.plant_name = plant_name
+        self.growth_score = growth_score
+        self.left = None
+        self.right = None
+
+
+class BinarySearchTree:
+    def __init__(self):
+        self.root = None
+
+    def insert(self, plant_name, growth_score):
+        new_node = BSTNode(plant_name, growth_score)
+        if self.root is None:              # empty tree: the new node is the root
+            self.root = new_node
+            return new_node
+        current = self.root
+        while True:
+            if growth_score < current.growth_score:      # smaller -> go LEFT
+                if current.left is None:
+                    current.left = new_node
+                    return new_node
+                current = current.left
+            else:                                        # bigger -> go RIGHT
+                if current.right is None:
+                    current.right = new_node
+                    return new_node
+                current = current.right
+
+    def search(self, growth_score):
+        current = self.root
+        while current is not None:
+            if growth_score == current.growth_score:
+                return current                           # FOUND
+            elif growth_score < current.growth_score:
+                current = current.left
+            else:
+                current = current.right
+        return None                                      # NOT FOUND
+
+
+def mutate_node(node):
+    # Change the information inside the node. growth_score is NOT changed,
+    # so the node stays in the same place in the tree.
+    if node.plant_name not in MUTATED_NAME:
+        return False
+    node.plant_name = MUTATED_NAME[node.plant_name]
+    return True
+
+
+# ---- TRY IT YOURSELF: remove the # signs, then press Run Python Code ----
+# practice = BinarySearchTree()
+# practice.insert("Lotus", 30)
+# practice.insert("Daisy", 25)
+# practice.insert("Tulip", 40)
+# print(practice.root.plant_name)                  # Lotus  (the root)
+# print(practice.root.left.plant_name)             # Daisy  (25 < 30, so LEFT)
+# print(practice.search(40).plant_name)            # Tulip  (40 > 30, so RIGHT)
+# mutate_node(practice.search(40))
+# print(practice.root.right.plant_name, practice.root.right.growth_score)   # Crystal Tulip 40
+# (bfs, preorder, inorder and postorder are defined in Topic 5)
+# print([n.growth_score for n in bfs(practice.root)])        # [30, 25, 40]  level by level
+# print([n.growth_score for n in preorder(practice.root)])   # [30, 25, 40]  Root, Left, Right
+# print([n.growth_score for n in inorder(practice.root)])    # [25, 30, 40]  sorted!
+# print([n.growth_score for n in postorder(practice.root)])  # [25, 40, 30]  Left, Right, Root
+
+
+# ============ PART 2: connects the BST to your garden (you can skip this) ============
+garden_bst = BinarySearchTree()          # starts EMPTY
+t6_state = {"info": {}, "selected": None, "path": None, "message": None}
+
+def t6_base(e):
+    return e[:-len(MUTATION_FX)] if e.endswith(MUTATION_FX) else e
+
+def t6_info(n):
+    return t6_state["info"][id(n)]
+
+def t6_in_bst(pos):
+    return any(i["pos"] == pos for i in t6_state["info"].values())
+
+def t6_nodes():
+    out = []
+    def walk(n):
+        if n is not None:
+            walk(n.left)
+            out.append(n)
+            walk(n.right)
+    walk(garden_bst.root)
+    return out
+
+def t6_say(kind, text):
+    t6_state["message"] = {"kind": kind, "text": text}
+    pushAction(text)
+
+def t6_ready_list():
+    out = []
+    if "t5_state" not in globals():
+        return out
+    for r in range(ROWS):
+        for c in range(COLS):
+            p = t5_state["grid_data"][r][c]
+            pos = r * COLS + c
+            if p and p["stage_index"] == len(p["stages"]) - 1 and not t6_in_bst(pos):
+                out.append({"pos": pos, "tile": "%d,%d" % (r, c), "name": p["final_name"],
+                            "emoji": t6_base(p["stages"][-1]["emoji"]),
+                            "score": p["growth_score"]})
+    return out
+
+def t6_trace(target):
+    steps, cur = [], garden_bst.root
+    while cur is not None:
+        if target == cur.growth_score:
+            steps.append((cur, "found"))
+            return cur, steps
+        d = "left" if target < cur.growth_score else "right"
+        steps.append((cur, d))
+        cur = cur.left if d == "left" else cur.right
+    return None, steps
+
+def t6_lines(steps, target, mode):
+    lines = []
+    for i, (n, d) in enumerate(steps):
+        s = n.growth_score
+        if d == "found":
+            text = "placed here 🌱" if mode == "insert" else f"{target} = {s} → FOUND 🎯"
+            if mode == "insert" and len(steps) == 1:
+                text = "the BST was empty, so this flower is the ROOT 👑"
+        elif d == "left":
+            text = f"{target} < {s} → go LEFT"
+        else:
+            text = f"{target} > {s} → go RIGHT"
+        if mode == "search" and d != "found" and i == len(steps) - 1:
+            text += " → empty spot: NOT FOUND ❌"
+        lines.append({"id": id(n), "emoji": t6_info(n)["emoji"], "score": s, "text": text})
+    return lines
+
+def t6_refresh(fresh=False, pop_id=None):
+    try:
+        nodes = t6_nodes()
+        path = dict(t6_state["path"], fresh=fresh) if t6_state["path"] else None
+        sel = t6_state["selected"]
+        state = {"root": id(garden_bst.root) if garden_bst.root else None, "valid": True,
+                 "broken": None, "reasons": [], "path": path, "pop": pop_id,
+                 "selected": id(sel) if sel else None, "message": t6_state["message"],
+                 "nodes": [{"id": id(n), "score": n.growth_score, "name": n.plant_name,
+                            "emoji": t6_info(n)["emoji"], "mutated": t6_info(n)["mutated"],
+                            "pos": t6_info(n)["pos"], "tile": "%d,%d" % divmod(t6_info(n)["pos"], COLS),
+                            "left": id(n.left) if n.left else None,
+                            "right": id(n.right) if n.right else None} for n in nodes]}
+        js.document.getElementById("t6-size").innerText = str(len(nodes))
+        js.document.getElementById("t6-root").innerText = str(garden_bst.root.growth_score) if garden_bst.root else "—"
+        js.renderReadyFlowers(json.dumps(t6_ready_list()))
+        js.renderGeneticsLab(json.dumps(state))
+    except Exception as e:
+        print(f"UI Error: {e}")
+
+def t6_add_to_bst(pos):
+    r, c = divmod(pos, COLS)
+    p = t5_state["grid_data"][r][c]
+    if p is None or p["stage_index"] < len(p["stages"]) - 1:
+        t6_say("warn", "⚠️ Only fully grown flowers can be added.")
+        t6_refresh(); return
+    name = p["final_name"]
+    score = p["growth_score"]
+    if garden_bst.search(score) is not None:
+        t6_say("warn", f"⚠️ Score {score} is already in the BST.\\nTry a different flower type.")
+        t6_refresh(); return
+    node = garden_bst.insert(name, score)
+    t6_state["info"][id(node)] = {"pos": pos, "emoji": t6_base(p["stages"][-1]["emoji"]), "mutated": False}
+    found, steps = t6_trace(score)
+    t6_state["path"] = {"kind": "insert", "target": score, "ids": [id(n) for n, _ in steps],
+                        "steps": t6_lines(steps, score, "insert"), "result": "inserted", "ghost": None}
+    t6_state["selected"] = node
+    t6_say("good", f"🌳 Added {t6_info(node)['emoji']} {name}\\nGrowth Score {score}")
+    t6_refresh(fresh=True, pop_id=id(node))
+
+def t6_search_from_ui():
+    raw = str(js.document.getElementById("t6-search-input").value).strip()
+    if not raw.isdigit():
+        t6_say("warn", "⚠️ Enter a whole-number score.")
+        t6_refresh(); return
+    if garden_bst.root is None:
+        t6_say("info", "🌱 BST is empty.\\nAdd a flower first.")
+        t6_refresh(); return
+    target = int(raw)
+    found = garden_bst.search(target)
+    _, steps = t6_trace(target)
+    ghost = None if found else {"parent": id(steps[-1][0]), "side": steps[-1][1]}
+    t6_state["path"] = {"kind": "search", "target": target, "ids": [id(n) for n, _ in steps],
+                        "steps": t6_lines(steps, target, "search"),
+                        "result": "found" if found else "missing", "ghost": ghost}
+    t6_state["selected"] = found
+    if found:
+        t6_say("good", f"🎯 Found {t6_info(found)['emoji']} {found.plant_name}\\nScore {target} · {len(steps)} step{'s' if len(steps) != 1 else ''}")
+    else:
+        t6_say("info", f"❌ Score {target} not found\\n{len(steps)} step{'s' if len(steps) != 1 else ''}")
+    t6_refresh(fresh=True)
+
+def t6_clear_path():
+    t6_state["path"] = None
+    t6_state["message"] = None
+    t6_refresh()
+
+def t6_select_node(node_id):
+    node = next((n for n in t6_nodes() if id(n) == node_id), None)
+    t6_state["selected"] = None if (node is None or t6_state["selected"] is node) else node
+    t6_refresh()
+
+def t6_mutate_from_ui():
+    node = t6_state["selected"]
+    if node is None:
+        t6_say("warn", "⚠️ Click a flower in the BST first.")
+        t6_refresh(); return
+    before, score = node.plant_name, node.growth_score
+    if not mutate_node(node):
+        t6_say("info", f"{before} is already mutated.\\nScore is still {score}.")
+        t6_refresh(); return
+    info = t6_info(node)
+    info["mutated"] = True
+    fx_emoji = info["emoji"] + MUTATION_FX
+    js.addPlantToGrid(info["pos"], node.plant_name, fx_emoji)      # enchanted tile in the garden
+    r, c = divmod(info["pos"], COLS)
+    if t5_state["grid_data"][r][c] is not None:
+        t5_state["grid_data"][r][c]["stages"][-1]["emoji"] = fx_emoji
+    t6_state["path"] = None
+    t6_say("good", f"✨ {before} → {node.plant_name}\\nScore stays {score}. Node stays put.")
+    t6_refresh()
+
+# The traversal code (bfs, preorder, inorder, postorder) lives in Topic 5.
+TRAVERSALS = {
+    "bfs": ("BFS (Level-Order)", "Top to bottom, level by level",
+            "Uses a FIFO queue: visit a node, then line its children up at the back of the queue."),
+    "preorder": ("Preorder (DFS)", "Root → Left → Right",
+                 "Visit the node first, then go all the way down the left side, then the right."),
+    "inorder": ("Inorder (DFS)", "Left → Root → Right",
+                "On a BST this visits flowers sorted by Growth Score, smallest to largest."),
+    "postorder": ("Postorder (DFS)", "Left → Right → Root",
+                  "Both children are visited before the node itself, so the root comes last."),
+}
+
+def t6_traverse(kind):
+    label, rule, note = TRAVERSALS[kind]
+    if "bfs" not in globals():                   # Topic 5 holds the traversal code
+        t6_say("warn", "⚠️ Run Topic 5 first.\\nIt has the traversal code.")
+        t6_refresh(); return
+    if garden_bst.root is None:
+        t6_say("info", "🌱 BST is empty.\\nAdd a flower first.")
+        t6_refresh(); return
+    if kind == "bfs":
+        nodes = bfs(garden_bst.root)
+    elif kind == "preorder":
+        nodes = preorder(garden_bst.root)
+    elif kind == "inorder":
+        nodes = inorder(garden_bst.root)
+    else:
+        nodes = postorder(garden_bst.root)
+    t6_state["path"] = None                      # clear any old search path
+    summary = " → ".join(f"{t6_info(n)['emoji']} {n.growth_score}" for n in nodes)
+    pushAction(f"🧭 {label}\\n{rule}\\n{summary}")
+    t6_state["message"] = {"kind": "info", "text": f"🧭 {label}: watch the tree!"}
+    t6_refresh()                                 # redraw the tree first...
+    steps = [{"id": id(n), "emoji": t6_info(n)["emoji"], "score": n.growth_score, "name": n.plant_name} for n in nodes]
+    js.runTraversal(json.dumps({"kind": kind, "label": label, "rule": rule, "note": note, "steps": steps}))   # ...then animate
+
+print("=== TOPIC 6: BINARY SEARCH TREES (BST) & NODE MUTATION LOADED (BST is empty) ===")
+t6_refresh()
 `
             },
             7: {
@@ -647,6 +1459,8 @@ t5_refresh_ui("System ready. Click any tile on the Sanctuary Garden Grid to begi
                 pyodideInstance.globals.set("addPlantsToDropdown", addPlantsToDropdown);
                 pyodideInstance.globals.set("pushAction", pushAction);
                 pyodideInstance.globals.set("updateClimateQueue", updateClimateQueue);
+                pyodideInstance.globals.set("getSelectedPos", getSelectedPos);
+                pyodideInstance.globals.set("isTileEmpty", isTileEmpty);
                 await pyodideInstance.runPythonAsync(`
                     import sys
                     from js import document
@@ -665,8 +1479,14 @@ t5_refresh_ui("System ready. Click any tile on the Sanctuary Garden Grid to begi
                 // open the Code Editor tab and run Topic 5 manually.
                 await pyodideInstance.runPythonAsync(topicTemplates[5].code);
 
+                // Same reasoning for Topic 6: its panel is also shown by
+                // default in the Interactive Sanctuary view, so its BST
+                // must be ready before the student ever opens the Code
+                // Editor tab.
+                await pyodideInstance.runPythonAsync(topicTemplates[6].code);
+
                 if (consoleEl) {
-                    consoleEl.innerHTML = `<span class="text-emerald-400">Python ready.</span><br>`;
+                    consoleEl.innerHTML = `<span class="text-purple-400">Python ready.</span><br>`;
                 }
             } catch (err) {
                 if (consoleEl) {
@@ -703,7 +1523,7 @@ t5_refresh_ui("System ready. Click any tile on the Sanctuary Garden Grid to begi
                 hope = hope !== undefined ? hope : 0;
                 coins = coins !== undefined ? coins : 0;
             }
-            const waterMax = 200, seedsMax = 100, energyMax = 120, hopeMax = 100;
+            const waterMax = 120, seedsMax = 120, energyMax = 120, hopeMax = 100;
             document.getElementById("water-text").innerText = `${water} / ${waterMax} L`;
             document.getElementById("water-bar").style.width = `${Math.min(100, (water / waterMax) * 100)}%`;
             document.getElementById("seeds-text").innerText = `${seeds} / ${seedsMax}`;
@@ -729,16 +1549,24 @@ t5_refresh_ui("System ready. Click any tile on the Sanctuary Garden Grid to begi
 
         function pushAction(action) {
             displayActionHistory.push(action);
-            if (displayActionHistory.length > 8) displayActionHistory.shift();
+            // The Action History is now the ONLY feedback surface in the app (the
+            // old per-topic log boxes were removed), so it keeps a longer backlog.
+            if (displayActionHistory.length > 40) displayActionHistory.shift();
             renderActionStack();
         }
 
         function renderActionStack() {
             const container = document.getElementById("action-stack");
             container.innerHTML = "";
+            if (displayActionHistory.length === 0) {
+                const ready = document.createElement("div");
+                ready.className = "text-xs text-emerald-300 border border-dashed border-emerald-700/60 rounded px-3 py-2";
+                ready.textContent = "🌱 SYSTEM READY! Click any tile to plant a crop.";
+                container.appendChild(ready);
+            }
             [...displayActionHistory].reverse().forEach(act => {
                 const div = document.createElement("div");
-                div.className = "bg-emerald-950/60 border-l-2 border-amber-500 px-3 py-2 rounded text-xs text-emerald-100";
+                div.className = "bg-purple-950/60 border-l-2 border-violet-400 px-3 py-2.5 rounded text-xs text-purple-100 leading-relaxed whitespace-pre-line";
                 div.textContent = `→ ${act}`;
                 container.appendChild(div);
             });
@@ -756,7 +1584,7 @@ t5_refresh_ui("System ready. Click any tile on the Sanctuary Garden Grid to begi
 
         function showToast(msg) {
             const toast = document.createElement("div");
-            toast.className = "fixed bottom-6 right-6 bg-emerald-900 border border-emerald-400 text-white px-5 py-3 rounded-2xl shadow-2xl z-50 text-sm";
+            toast.className = "fixed bottom-6 right-6 bg-purple-900 border border-purple-400 text-white px-5 py-3 rounded-2xl shadow-2xl z-50 text-sm";
             toast.textContent = msg;
             document.body.appendChild(toast);
             setTimeout(() => toast.remove(), 2500);
@@ -774,6 +1602,32 @@ t5_refresh_ui("System ready. Click any tile on the Sanctuary Garden Grid to begi
             }
         }
 
+        // Runs every bundled topic (1-12) back to back, in order, so a
+        // student can execute the whole notebook without clicking through
+        // each topic one at a time. One topic failing (or an intentionally
+        // blank "WRITE YOUR CODE HERE" stub) never stops the rest.
+        async function runAllCodes() {
+            const consoleEl = document.getElementById("output-console");
+            consoleEl.innerHTML = `<span class="text-amber-400">Running all topics...</span><br>`;
+            try {
+                await initPyodide();
+            } catch (err) {
+                consoleEl.innerHTML += `<span class="text-red-400">Error: ${err.message}</span>`;
+                return;
+            }
+            for (const key of Object.keys(topicTemplates).sort((a, b) => Number(a) - Number(b))) {
+                const tpl = topicTemplates[key];
+                consoleEl.innerHTML += `<br><span class="text-purple-300 font-bold">── Topic ${key}: ${tpl.title} ──</span><br>`;
+                try {
+                    await pyodideInstance.runPythonAsync(tpl.code);
+                } catch (err) {
+                    consoleEl.innerHTML += `<span class="text-red-400">Error in Topic ${key}: ${err.message}</span><br>`;
+                }
+            }
+            consoleEl.innerHTML += `<br><span class="text-emerald-400 font-bold">🌱 SYSTEM READY!</span><br>Click any tile to plant a crop.`;
+            consoleEl.scrollTop = consoleEl.scrollHeight;
+        }
+
         function loadTopic() {
             const key = document.getElementById("topic-selector").value;
             document.getElementById("code-editor").value = topicTemplates[key].code;
@@ -782,10 +1636,17 @@ t5_refresh_ui("System ready. Click any tile on the Sanctuary Garden Grid to begi
         function switchTab(tab) {
             document.getElementById("view-game").classList.toggle("hidden", tab !== "game");
             document.getElementById("view-code").classList.toggle("hidden", tab !== "code");
-            document.getElementById("tab-game").classList.toggle("bg-[#283623]", tab === "game");
-            document.getElementById("tab-game").classList.toggle("text-emerald-100", tab === "game");
-            document.getElementById("tab-code").classList.toggle("bg-[#283623]", tab === "code");
-            document.getElementById("tab-code").classList.toggle("text-emerald-100", tab === "code");
+            document.getElementById("view-bst").classList.toggle("hidden", tab !== "bst");
+            // Swap the active/inactive looks explicitly so the two colour
+            // classes can never fight each other on the same button.
+            ["game", "code", "bst"].forEach(name => {
+                const btn = document.getElementById("tab-" + name);
+                const active = (name === tab);
+                btn.classList.toggle("bg-[#3b2a6b]", active);
+                btn.classList.toggle("text-purple-100", active);
+                btn.classList.toggle("shadow-md", active);
+                btn.classList.toggle("text-purple-400/80", !active);
+            });
         }
 
         window.onload = () => {
@@ -793,7 +1654,7 @@ t5_refresh_ui("System ready. Click any tile on the Sanctuary Garden Grid to begi
             lucide.createIcons();
             renderGarden();
             renderActionStack();
-            updateResources(0, 0, 0, 0, 999);
+            updateResources(120, 120, 120, 80, 999);
 
             // Seed Bag must be usable straight away, otherwise the student
             // has no flower to choose before pressing "Plant Seed".
@@ -801,7 +1662,10 @@ t5_refresh_ui("System ready. Click any tile on the Sanctuary Garden Grid to begi
                 ["Cherry Blossom", "🌸", 6],
                 ["Lotus", "🪷", 10],
                 ["Hyacinth", "🪻", 15],
-                ["Tulip", "🌷", 20]
+                ["Tulip", "🌷", 20],
+                ["Rose", "🌹", 12],
+                ["Sunflower", "🌻", 8],
+                ["Daisy", "🌼", 5]
             ]);
 
             const select = document.getElementById("topic-selector");
@@ -811,6 +1675,7 @@ t5_refresh_ui("System ready. Click any tile on the Sanctuary Garden Grid to begi
                 opt.textContent = topicTemplates[k].title;
                 select.appendChild(opt);
             });
+            select.value = "6";   // the editor opens on the BST & Node Mutation lesson
             loadTopic();
             switchTab("game");
             initPyodide().catch(() => { });
