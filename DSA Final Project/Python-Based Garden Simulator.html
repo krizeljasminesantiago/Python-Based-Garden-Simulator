@@ -3100,6 +3100,47 @@
             display: none !important
         }
 
+        #sort-popup {
+            position: fixed;
+            inset: 0;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 18px;
+            background: #090512cc
+        }
+
+        #sort-popup.hidden {
+            display: none !important
+        }
+
+        #sort-popup .drm-card {
+            width: min(440px, 94vw);
+            padding: 22px;
+            border-radius: 20px;
+            border: 2px solid #a56bd1;
+            background: linear-gradient(145deg, #2c1b40, #151020);
+            box-shadow: 0 14px 50px #0009;
+            color: #f7edff
+        }
+
+        #sort-popup .drm-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 16px
+        }
+
+        #sort-popup button {
+            flex: 1;
+            min-width: 120px;
+            border-radius: 10px;
+            padding: 10px 12px;
+            font-weight: 800;
+            color: #fff
+        }
+
         #delivery-return-modal .drm-card {
             width: min(440px, 94vw);
             padding: 22px;
@@ -3208,6 +3249,8 @@
                     title="Dig up the plant on the selected tile (X)">⛏️ Shovel <kbd>X</kbd></button>
                 <button type="button" id="expand-btn" class="ga-btn ga-expand" style="display:none"
                     title="Your garden is full! Add a new row of plots (100c)">➕ Expand garden</button>
+                <button type="button" id="det-open" class="ga-btn ga-det"
+                    title="Find the buried treasure with the scanner">📡 Detector</button>
                 <button type="button" id="pipe-open" class="ga-btn ga-tools"
                     title="Lay water pipes so plants are watered automatically each morning">🔧 Pipes</button>
                 <button type="button" id="garden-info-btn" class="ga-info" title="How to play"
@@ -3478,7 +3521,7 @@
         </section>
     </main>
     <script>
-        const APP_VERSION = "0.19.2";
+        const APP_VERSION = "0.22.0";
 
         let pyodideInstance = null;
         let gardenPlants = {};
@@ -4046,7 +4089,19 @@
         ["A stack's peek() does what?", "Looks at the top without removing", "Removes the top", "Adds to the top", "Peek means just look."],
         ["A printer queue works like…", "FIFO", "LIFO", "A BST", "The first document sent prints first."],
         ["In a BST, where is the biggest value?", "Far right", "Far left", "Always the root", "Keep going to the bigger side."],
-        ["A tree where each node has at most 2 children is a…", "Binary tree", "Linked list", "Queue", "Bi means two."]];
+        ["A tree where each node has at most 2 children is a…", "Binary tree", "Linked list", "Queue", "Bi means two."],
+        ["Binary search needs the list to be…", "Sorted", "Reversed", "Full of duplicates", "It compares the middle item, so order matters."],
+        ["Linear search takes, in the worst case…", "O(n)", "O(log n)", "O(1)", "You may have to check every item."],
+        ["Binary search cuts the search area…", "In half each step", "By one item each step", "To a random size", "Think of guessing a number: higher or lower."],
+        ["Dijkstra's algorithm finds…", "The shortest weighted path", "The longest path", "A sorted list", "Think of the fastest delivery route."],
+        ["Dijkstra always visits next the stop with the…", "Smallest known distance", "Largest distance", "Alphabetical name", "A min-heap (priority queue) keeps it ready."],
+        ["A greedy algorithm…", "Takes the best choice at each step", "Tries every possibility", "Always needs recursion", "Locally best choices."],
+        ["Greedy change-making can fail when…", "The coin values are unusual", "The amount is zero", "There are too many coins", "Remember the 4, 3, 1 coin example."],
+        ["Dynamic programming stores…", "Answers to sub-problems", "Only the final answer", "Random numbers", "Do not solve the same problem twice."],
+        ["Memoization is…", "Caching results of function calls", "Sorting a list", "Deleting old data", "Remember what you already calculated."],
+        ["Divide and conquer…", "Splits a problem into smaller parts", "Solves everything at once", "Never uses recursion", "Merge sort is an example."],
+        ["In the 0/1 knapsack problem each item can be used…", "At most once", "Unlimited times", "In pieces", "0 or 1 time."],
+        ["Plain recursive Fibonacci repeats work, so it takes about…", "O(2ⁿ)", "O(n)", "O(1)", "Each call branches into two more calls."]];
         const wg = { pos: null, game: -1, timer: null, st: {} };
         const wgEl = id => document.getElementById(id);
         function waterInfo() {
@@ -4153,7 +4208,7 @@
             wg.timer = setInterval(wgCatchTick, 40);
         }
         function wgCatchMove(e) { if (wg.game !== 5) return; const r = wgEl("wg-catch").getBoundingClientRect(); wg.st.x = Math.max(6, Math.min(94, (e.clientX - r.left) / r.width * 100)); }
-        function wgCatchKey(d) { if (wg.game === 5) wg.st.x = Math.max(6, Math.min(94, wg.st.x + d * 12)); }
+        function wgCatchKey(d) { if (wg.game === 5) wg.st.x = Math.max(6, Math.min(94, wg.st.x + d * 9)); }
         function wgCatchTick() {
             const s = wg.st, box = wgEl("wg-catch"); if (!box || wg.game !== 5) return; s.tick++; s.left--;
             if (s.tick % 20 === 0) { const el = document.createElement("span"), sun = (s.tick / 20) % 4 === 0; el.className = "wg-drop"; el.textContent = sun ? "☀️" : "💧"; box.appendChild(el); s.drops.push({ el, x: 8 + Math.random() * 84, y: -8, sun }); }
@@ -4213,7 +4268,13 @@
         window.addEventListener("keydown", e => {
             if (wg.pos === null) return;
             if (e.key === "Escape") { wgClose(); return; }
-            if ([" ", "e", "E", "h", "H", "w", "a", "s", "d", "W", "A", "S", "D", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) { e.preventDefault(); e.stopImmediatePropagation(); if (e.key === " ") wgSpace(); }
+            if ([" ", "e", "E", "h", "H", "w", "a", "s", "d", "W", "A", "S", "D", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
+                e.preventDefault(); e.stopImmediatePropagation(); if (e.key === " ") wgSpace();
+                if (wg.game === 5) {                       // Drop Catch: ◀ ▶ (or A / D) slide the bucket
+                    const k = e.key.toLowerCase();
+                    if (k === "arrowleft" || k === "a") wgCatchKey(-1); else if (k === "arrowright" || k === "d") wgCatchKey(1);
+                }
+            }
         }, true);
         // "Water Plant (Wait 30s)  ⏱ 00:23" on the button of the selected plot
         function updateWaterTimer() {
@@ -4630,9 +4691,9 @@ if "t5_state" not in globals():
         "grid_data": [[None for _ in range(COLS)] for _ in range(ROWS)],
         "active_pos": None
     }
-t5_state.setdefault("sun", 120)     # Sunlight (Wh): refills by itself, faster on bright days
-t5_state.setdefault("fert", 5)      # Fertilizer: from harvesting, digging (compost) or buying
 SUN_MAX, FERT_MAX, SUN_COST, FERT_COST_COINS = 120, 30, 10, 15
+t5_state.setdefault("sun", SUN_MAX)     # Sunlight (Wh): starts full, refills by itself, faster on bright days
+t5_state.setdefault("fert", FERT_MAX)   # Fertilizer: starts full; more from harvesting, digging (compost) or buying
 SUN_REGEN = {"Sunny": 5, "Drought": 5, "Windy": 3, "Cloudy": 2, "Drizzle": 1, "Flood": 1}
 
 def t5_send_needs():
@@ -5769,7 +5830,7 @@ print("Adjacency list:", g.adj_list)
 print("Adjacency matrix:")
 for row in g.adj_matrix:
     print(row)
-order, level = g.bfs(0) D
+order, level = g.bfs(0)
 print("BFS order:", order, "| levels:", level)
 print("DFS order:", g.dfs(0))
 print("Plants the water never reaches:", [v for v in range(7) if v not in order])
@@ -5918,6 +5979,36 @@ print("Linear (unsorted):", linear_search(crates, 96))
 ordered = sorted(crates)
 print("Binary (sorted):  ", binary_search(ordered, 96))
 print("Worst case: linear =", len(crates), "steps, binary about 4 steps -> O(n) vs O(log n)")
+# ======================= GAME FEATURES (Topic 10) =======================
+import json as _json10
+
+def search_compare(values_json, target):
+    # the same list searched three ways: linear, binary (needs a sorted copy), and a hash table
+    values = _json10.loads(values_json)
+    lin = 0
+    lin_found = False
+    for v in values:
+        lin += 1
+        if v == target:
+            lin_found = True
+            break
+    ordered = sorted(values)
+    lo, hi, binary, bin_found = 0, len(ordered) - 1, 0, False
+    while lo <= hi:
+        mid = (lo + hi) // 2
+        binary += 1
+        if ordered[mid] == target:
+            bin_found = True
+            break
+        if ordered[mid] < target:
+            lo = mid + 1
+        else:
+            hi = mid - 1
+    table = {}
+    for v in values:
+        table[v] = True
+    return _json10.dumps({"linear": lin, "binary": binary, "hash": 1, "found": lin_found and bin_found and (target in table)})
+
 `
             },
             11: {
@@ -5968,6 +6059,40 @@ def greedy_change(coins, amount):
 
 print("Normal coins:", greedy_change([25, 10, 5, 1], 41))
 print("Odd coins (greedy is NOT optimal):", greedy_change([4, 3, 1], 6), "but 3 + 3 uses only 2 coins")
+# ======================= GAME FEATURES (Topic 11) =======================
+import json as _json11
+import heapq as _hq11
+
+def route_dijkstra(edges_json, start, goal, closed_json):
+    # edges: [[a, b, minutes], ...]; closed: [[a, b], ...] roads that cannot be used
+    edges = _json11.loads(edges_json)
+    closed = set(tuple(sorted(x)) for x in _json11.loads(closed_json))
+    graph = {}
+    for a, b, w in edges:
+        if tuple(sorted((a, b))) in closed:
+            continue
+        graph.setdefault(a, []).append((b, w))
+        graph.setdefault(b, []).append((a, w))
+    dist = {start: 0}
+    prev = {}
+    pq = [(0, start)]
+    while pq:
+        d, u = _hq11.heappop(pq)
+        if d > dist.get(u, float("inf")):
+            continue
+        for v, w in graph.get(u, []):
+            if d + w < dist.get(v, float("inf")):
+                dist[v] = d + w
+                prev[v] = u
+                _hq11.heappush(pq, (d + w, v))
+    if goal not in dist:
+        return _json11.dumps({"ok": False})
+    path, node = [goal], goal
+    while node != start:
+        node = prev[node]
+        path.append(node)
+    return _json11.dumps({"ok": True, "time": dist[goal], "path": path[::-1]})
+
 `
             },
             12: {
@@ -6017,6 +6142,123 @@ def find_sick(plots, lo, hi, steps=0):
 garden = [False] * 16
 garden[11] = True
 print("Sick plot and scans used:", find_sick(garden, 0, 15))
+# ======================= GAME FEATURES (Topic 12) =======================
+import json as _json2
+
+# ---------- Bouquet Builder: 0/1 knapsack (dynamic programming) ----------
+def knapsack_table(items, capacity):
+    # items: list of (stems, value). table[i][c] = best value using the first i flowers with capacity c
+    n = len(items)
+    table = [[0] * (capacity + 1) for _ in range(n + 1)]
+    for i in range(1, n + 1):
+        stems, value = items[i - 1]
+        for c in range(capacity + 1):
+            table[i][c] = table[i - 1][c]                      # exclude flower i
+            if stems <= c and table[i - 1][c - stems] + value > table[i][c]:
+                table[i][c] = table[i - 1][c - stems] + value  # include flower i
+    return table
+
+def knapsack_pick(items, capacity, table):
+    # walk the table backwards: if the value changed, flower i was included
+    chosen, c = [], capacity
+    for i in range(len(items), 0, -1):
+        if table[i][c] != table[i - 1][c]:
+            chosen.append(i - 1)
+            c -= items[i - 1][0]
+    return sorted(chosen)
+
+def knapsack_steps(items, capacity):
+    # the same algorithm, but it records how every cell was calculated (used by the learning panel)
+    table = [[0] * (capacity + 1) for _ in range(len(items) + 1)]
+    steps = []
+    for i in range(1, len(items) + 1):
+        stems, value = items[i - 1]
+        for c in range(capacity + 1):
+            skip = table[i - 1][c]
+            take = table[i - 1][c - stems] + value if stems <= c else None
+            if take is not None and take > skip:
+                table[i][c] = take
+                action = "include"
+            else:
+                table[i][c] = skip
+                action = "exclude"
+            steps.append({"i": i, "c": c, "skip": skip, "take": take, "value": table[i][c], "action": action, "stems": stems, "gain": value})
+    return steps
+
+def bouquet_solve(items_json, capacity):
+    items = [tuple(x) for x in _json2.loads(items_json)]
+    table = knapsack_table(items, capacity)
+    chosen = knapsack_pick(items, capacity, table)
+    return _json2.dumps({"table": table, "chosen": chosen, "best": table[len(items)][capacity], "steps": knapsack_steps(items, capacity)})
+
+# ---------- Flower Growth Calculator: Fibonacci with and without memoization ----------
+def fib_plain_run(n):
+    calls = [0]
+    log = []
+    def fib(k):
+        calls[0] += 1
+        if len(log) < 40:
+            log.append(k)
+        return k if k < 2 else fib(k - 1) + fib(k - 2)
+    result = fib(n)
+    return result, calls[0], log
+
+def fib_memo_run(n):
+    memo = {}
+    calls = [0]
+    log = []
+    def fib(k):
+        calls[0] += 1
+        if k in memo:
+            if len(log) < 40:
+                log.append([k, "reused"])
+            return memo[k]
+        if len(log) < 40:
+            log.append([k, "calculated"])
+        memo[k] = k if k < 2 else fib(k - 1) + fib(k - 2)
+        return memo[k]
+    result = fib(n)
+    return result, calls[0], log, memo
+
+def fib_compare(n):
+    r1, c1, log1 = fib_plain_run(n)
+    r2, c2, log2, memo = fib_memo_run(n)
+    return _json2.dumps({"n": n, "plain": r1, "memo": r2, "same": r1 == r2, "plain_calls": c1, "memo_calls": c2,
+                         "plain_log": log1, "memo_log": log2, "notebook": [[k, memo[k]] for k in sorted(memo)]})
+
+# ---------- Treasure Detector: divide and conquer ----------
+import random as _rnd12
+
+def treasure_new(rows, cols):
+    return _rnd12.randrange(rows * cols)
+
+def region_split(region):
+    # divide the search area in two halves along its longer side; None when it is a single tile
+    r0, r1, c0, c1 = region
+    h, w = r1 - r0 + 1, c1 - c0 + 1
+    if w >= h and w > 1:
+        mid = c0 + (w - 1) // 2
+        return (r0, r1, c0, mid), (r0, r1, mid + 1, c1)
+    if h > 1:
+        mid = r0 + (h - 1) // 2
+        return (r0, mid, c0, c1), (mid + 1, r1, c0, c1)
+    return None
+
+def region_has(region, tile, cols):
+    r, c = divmod(tile, cols)
+    return region[0] <= r <= region[1] and region[2] <= c <= region[3]
+
+def treasure_scan(region_json, treasure, cols, which):
+    # one divide-and-conquer step: scan the first (0) or second (1) half. The search area shrinks every time.
+    region = tuple(_json2.loads(region_json))
+    halves = region_split(region)
+    if halves is None:
+        return _json2.dumps({"done": True, "region": list(region)})
+    scanned = halves[which]
+    found = region_has(scanned, treasure, cols)
+    nxt = scanned if found else halves[1 - which]
+    return _json2.dumps({"done": False, "scanned": list(scanned), "found": found, "region": list(nxt),
+                         "single": nxt[0] == nxt[1] and nxt[2] == nxt[3]})
 `
             }
         };
@@ -6103,6 +6345,18 @@ def shop_sell_flower(requested_name):
     except Exception as e:
         return _shop_json.dumps({"ok":False,"message":str(e)})
 `);
+
+                // Topics 10-12 power the shop searches, delivery route, bouquet, petal question and treasure detector.
+                // They are loaded quietly (their print() lines are not copied into the Code Editor console).
+                await pyodideInstance.runPythonAsync(`
+import sys as _sys_q, io as _io_q
+_stdout_keep = _sys_q.stdout
+_sys_q.stdout = _io_q.StringIO()
+`);
+                try {
+                    for (const k of [10, 11, 12]) await pyodideInstance.runPythonAsync(topicTemplates[k].code);
+                } catch (e) { console.error("Topic 10-12 load:", e); }
+                finally { await pyodideInstance.runPythonAsync("_sys_q.stdout = _stdout_keep"); }
 
                 if (consoleEl) {
                     consoleEl.innerHTML = `<span class="text-purple-400">Python ready.</span><br>`;
@@ -6800,6 +7054,17 @@ def shop_sell_flower(requested_name):
             padding-left: 22px
         }
     </style>
+    <div id="sort-popup" class="hidden" role="dialog" aria-modal="true" aria-labelledby="sp-title">
+        <div class="drm-card">
+            <div style="font-size:34px;margin-bottom:8px">🧺🔢</div>
+            <h3 id="sp-title" style="font-size:20px;font-weight:900;color:#f0d9ff">Sort the shelf first!</h3>
+            <p id="sp-msg" style="margin-top:8px;font-size:13px;line-height:1.55;color:#e2d2f5"></p>
+            <div class="drm-actions">
+                <button type="button" id="sp-no" style="background:#5b3a7c">Not now</button>
+                <button type="button" id="sp-go" style="background:#8b3db5">🧺 Sort the shelf</button>
+            </div>
+        </div>
+    </div>
     <div id="delivery-return-modal" class="hidden" role="dialog" aria-modal="true"
         aria-labelledby="delivery-return-title">
         <div class="drm-card">
@@ -7164,8 +7429,10 @@ def shop_sell_flower(requested_name):
             <h1>Bloom &amp; Store</h1>
             <p>Fresh flowers, happy hearts.<br>Your little shop is ready to bloom.</p>
             <div id="name-box"><label for="player-name-input">Who is playing?</label><input id="player-name-input"
-                    type="text" maxlength="16" placeholder="Your name" autocomplete="off"><input id="player-pass-input"
-                    type="password" maxlength="24" placeholder="Password" autocomplete="off">
+                    type="text" name="gs-player-nick" maxlength="16" placeholder="Your name" autocomplete="off" readonly
+                    onfocus="this.removeAttribute('readonly')"><input id="player-pass-input" type="password"
+                    name="gs-player-secret" maxlength="24" placeholder="Password" autocomplete="new-password" readonly
+                    onfocus="this.removeAttribute('readonly')">
                 <div id="player-name-hint">Type your name and a password.</div>
                 <div id="player-name-err"></div>
             </div><button type="button" id="open-store-now">☀️ Open the Store</button>
@@ -8820,7 +9087,9 @@ def shop_sell_flower(requested_name):
             window.PD = { own: { col: [0, 1], acc: [0, 1], crop: [] }, costume: { c: 0, a: 0, g: 0 }, best: { score: 0 }, hp: 0, coins: null, day: 1 }; window.GAMEUSER = ''; window.allProfiles = users;
             window.saveProfile = () => { if (!GAMEUSER) return; const u = users(), k = GAMEUSER.toLowerCase(); if (!u[k]) return; try { const c = $('coins-text'); if (c && parseInt(c.textContent) >= 0) PD.coins = parseInt(c.textContent); if (typeof shopState !== 'undefined') PD.day = shopState.day } catch (e) { } u[k].data = JSON.parse(JSON.stringify(PD)); localStorage.setItem(KEY, JSON.stringify(u)) };
             const ni = $('player-name-input'), pi = $('player-pass-input'), ob = $('open-store-now'), err = $('player-name-err'), hint = $('player-name-hint');
-            const last = localStorage.getItem('bs-lastuser'); if (last) ni.value = last;
+            /* the fields always start empty: no remembered name, and a browser's password manager may not fill them in */
+            let typed = false;[ni, pi].forEach(el => el.addEventListener('keydown', () => { typed = true }));
+            const wipe = () => { if (!typed) { ni.value = ''; pi.value = ''; upd() } };[100, 500, 1200, 2500].forEach(ms => setTimeout(wipe, ms)); window.addEventListener('pageshow', wipe);
             const upd = () => { const n = ni.value.trim().toLowerCase(); hint.textContent = !n ? 'Type your name and a password.' : users()[n] ? '👋 Welcome back! Enter your password to continue your progress.' : '🆕 New player! Choose a password to create your profile. Everything starts locked.' };
             ni.addEventListener('input', upd); upd();
             [ni, pi].forEach(el => el.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); if (el === ni && !pi.value) { pi.focus(); return } ob.click() } }));
@@ -8831,7 +9100,7 @@ def shop_sell_flower(requested_name):
                 const reset = () => { PD.own.col = [0, 1]; PD.own.acc = [0, 1]; PD.own.crop = []; Object.assign(PD.costume, { c: 0, a: 0, g: 0 }); PD.best.score = 0; PD.hp = 0; PD.coins = null; PD.day = 1 };
                 if (u[k]) { if (u[k].pw !== ph) return stop('Wrong password for this name. Try again, or use a different name for a new profile.'); reset(); const d = u[k].data; if (d) { Object.assign(PD.own, d.own); Object.assign(PD.costume, d.costume); Object.assign(PD.best, d.best); PD.hp = d.hp || 0; PD.coins = d.coins; PD.day = d.day || 1 } }
                 else { reset(); u[k] = { name, pw: ph, data: null }; localStorage.setItem(KEY, JSON.stringify(u)) }
-                window.GAMEUSER = name; window.PLAYER_NAME = name; localStorage.setItem('bs-lastuser', name); pi.value = ''; err.textContent = '';
+                window.GAMEUSER = name; window.PLAYER_NAME = name; pi.value = ''; err.textContent = '';
                 if (typeof shopState !== 'undefined') shopState.day = PD.day || 1;
                 if (PD.coins != null) { const t = setInterval(() => { try { if (pyodideInstance && pyodideInstance.globals.has('t5_set_coins')) { pyodideInstance.runPython('t5_set_coins(' + PD.coins + ')'); clearInterval(t) } } catch (x) { } }, 700) }
                 if (window.onProfileLoaded) window.onProfileLoaded(); saveProfile()
@@ -9785,10 +10054,16 @@ def shop_sell_flower(requested_name):
                 const st = shopGetStock().map(f => Object.assign({}, f, { sku: SKU(f.name) })), by = {}; st.forEach(f => by[f.pos] = f);
                 SH.order = SH.order.filter(p => by[p]); const have = new Set(SH.order); st.forEach(f => { if (!have.has(f.pos)) { SH.order.push(f.pos); SH.sorted = false } }); return SH.order.map(p => by[p])
             }
-            function shelfSortStart() {
+            function shelfSortStart(after) {
                 const items = shelfItems(); if (items.length < 2) { showToast('🧺 You need at least 2 ready flowers on the shelf to organize it.'); return }
                 if (SH.sorted) { showToast('🧺 The shelf is already organized. Binary search is on!'); return }
-                openCtx('🧺 Organize the shelf', { done: () => showToast('🧺 Shelf organized! Customers can now be found with binary search.') }, () => ssPick(items))
+                openCtx('🧺 Organize the shelf', { done: () => { showToast('🧺 Shelf organized! Customers can now be found with binary search.'); if (typeof after === 'function') after() } }, () => ssPick(items))
+            }
+            /* pop-up shown when a customer is at the counter but the shelf is still unsorted */
+            function sortPrompt(c) {
+                const m = $('sort-popup'); if (!m) return; $('sp-msg').textContent = c.customer + ' wants ' + ((SHOP_FLOWERS[c.name] || {}).emoji || '🌸') + ' ' + c.name + '. Before you hand it over, your shelf must be sorted by catalog number so the flower can be found fast (binary search). Sort it now?';
+                $('sp-go').onclick = () => { m.classList.add('hidden'); shelfSortStart(() => { if (shopState.current === c && !c.served && !shopState.closed) searchFlow(c, () => oServe()) }) };
+                $('sp-no').onclick = () => m.classList.add('hidden'); m.classList.remove('hidden')
             }
             function ssPick(items) {
                 const keys = items.map(i => i.sku);
@@ -9820,7 +10095,7 @@ def shop_sell_flower(requested_name):
             }
             L.fsOpen = i => {
                 const s = S.fs; if (s.found || s.over || s.open[i] !== undefined) return; const f = s.items[i]; s.open[i] = 1; s.steps++; s.patience--;
-                if (f.name === s.c.name) { s.found = true; S.res = { found: true, steps: s.steps }; s.msg = `✅ Found it in ${s.steps} step(s)! Faster service means a bigger tip.` }
+                if (f.name === s.c.name) { s.found = true; S.res = { found: true, steps: s.steps }; s.msg = `✅ Found it in ${s.steps} step(s)! Binary search on a sorted shelf of ${s.items.length} needs at most ${Math.ceil(Math.log2(s.items.length + 1))}. Faster service means a bigger tip.` }
                 else {
                     if (s.mode === 'bin') { if (f.sku < s.tsku) s.lo = i + 1; else s.hi = i - 1; s.msg = f.sku < s.tsku ? '⬆ Too low: look to the right.' : '⬇ Too high: look to the left.' } else s.msg = 'Not this one…';
                     if (s.patience <= 0) { s.over = true; S.res = { found: false }; s.msg = '😤 The customer ran out of patience and is leaving!' }
@@ -9844,26 +10119,72 @@ def shop_sell_flower(requested_name):
                 const best = dpCoins(s.d, s.X).l.length; let g = 0, t = s.X;[...s.d].sort((a, b) => b - a).forEach(c => { g += Math.floor(t / c); t %= c }); const me = s.pick.length, tip = me === best ? 5 : 0; S.res = { tip };
                 out(`<p class="lab-note">You gave ${me} coin(s). Greedy (always the biggest coin) would use <b>${g}</b>. The true minimum is <b>${best}</b>.${g !== best ? ' ⚠️ Greedy FAILS with these coins. Dynamic programming finds the best change.' : ' Here greedy happens to be optimal.'}</p><div class="lab-q">${tip ? '😄 Perfect change! Tip +5c' : 'The customer takes the change and leaves. No tip this time.'}</div>${cont}`)
             };
-            /* ---- bouquet customers: knapsack with your real stock ---- */
+            /* ---- Bouquet Builder: 0/1 knapsack solved by Python (dynamic programming) ---- */
+            const pyJ = code => { try { return JSON.parse(pyodideInstance.runPython(code)) } catch (e) { return null } };
             function bqFlow(c) {
-                let items = shelfItems().slice(0, 9).map(f => Object.assign({}, f, { w: 1 + f.sku % 5 })), demo = false; if (items.length < 3) { demo = true; items = [['Tulip', '🌷', 20, 2], ['Rose', '🌹', 42, 3], ['Daisy', '🌼', 30, 2], ['Lotus', '🪷', 35, 4], ['Fern', '🌿', 18, 1], ['Sunflower', '🌻', 25, 3]].map(([name, emoji, price, w]) => ({ name, emoji, price, w })) }
-                S.bq = { c, items, demo, cap: 8 + Rn(5), sel: new Set(), msg: '' }; openCtx('💐 Bouquet order', {
+                const items = shelfItems().slice(0, 9).map(f => Object.assign({}, f, { w: 1 + f.sku % 5 }));
+                if (items.length < 3) { c.served = true; c.left = true; c.price = 0; document.getElementById('shop-feedback').textContent = '💐 ' + c.customer + ' needed at least 3 ready flowers for a bouquet and left.'; shopRender(); showToast('💐 You need at least 3 ready flowers for a bouquet.'); return }
+                const total = items.reduce((a, x) => a + x.w, 0), cap = Math.max(5, Math.min(12, Math.floor(total * 0.6)));
+                S.bq = { c, items, cap, sel: new Set(), msg: '', res: null, view: 'build', k: 0 };
+                openCtx('💐 Bouquet Builder', {
                     done: r => {
-                        if (!r) return; const names = r.names; let sum = 0; if (S.bq.demo) { sum = r.value; pay(sum) } else names.forEach(n => { try { const d = JSON.parse(shopPython('shop_sell_flower', n)); if (d.ok) sum += d.price } catch (e) { } });
-                        c.served = true; c.price = sum; shopState.sales += sum; shopState.served++; shopReceipts.unshift({ customer: c.customer, name: 'Bouquet of ' + names.length, price: sum, mutated: false, platform: 'Bouquet order', status: 'served and paid', time: new Date().toLocaleTimeString() });
+                        if (!r) return; let sum = 0; r.names.forEach(n => { try { const d = JSON.parse(shopPython('shop_sell_flower', n)); if (d.ok) sum += d.price } catch (e) { } });
+                        c.served = true; c.price = sum; shopState.sales += sum; shopState.served++; shopReceipts.unshift({ customer: c.customer, name: 'Bouquet of ' + r.names.length, price: sum, mutated: false, platform: 'Bouquet order', status: 'served and paid', time: new Date().toLocaleTimeString() });
                         document.getElementById('shop-feedback').textContent = '💐 Bouquet sold for ' + sum + 'c!' + (r.bonus ? ' +' + r.bonus + 'c optimal-bouquet bonus' : ''); shopRender(); if (r.bonus) setTimeout(() => pay(r.bonus), 600)
                     }
                 }, bqRender)
             }
+            function bqTotals() { const s = S.bq; let W = 0, V = 0; s.sel.forEach(i => { W += s.items[i].w; V += s.items[i].price }); return { W, V } }
             function bqRender() {
-                const s = S.bq, W = [...s.sel].reduce((a, i) => a + s.items[i].w, 0), V = [...s.sel].reduce((a, i) => a + s.items[i].price, 0);
-                out(`<p class="lab-note">${s.c.customer}'s vase holds <b>${s.cap} stems</b>. ${s.demo ? "These are the shop's display flowers, because your garden has no ready flowers yet. " : ""}Choose flowers that fit the vase. Each one is sold at its price, so pick the mix worth the most.</p><div class="kp">${s.items.map((x, i) => `<button class="kpi${s.sel.has(i) ? ' on' : ''}" onclick="LAB.bqTog(${i})">${x.emoji}<small>${x.w} stems · ${x.price}c</small></button>`).join('')}</div><div class="lab-q">Stems ${W}/${s.cap} · Value ${V}c</div><div class="lab-btns"><button onclick="LAB.bqSubmit()">✔ Sell bouquet</button></div><p class="lab-note">${s.msg}</p>`)
+                const s = S.bq; if (s.view === 'dp') return bqDpRender(); const { W, V } = bqTotals();
+                if (s.view === 'result') {
+                    const r = s.res, bonus = V === r.best;
+                    return out(`<p class="lab-note">Your bouquet: <b>${V}c</b> using ${W}/${s.cap} stems. Best possible (calculated by Python dynamic programming): <b>${r.best}c</b>.</p><div class="kp">${s.items.map((x, i) => `<div class="kpi${s.sel.has(i) ? ' on' : ''}${r.chosen.includes(i) ? ' opt' : ''}">${x.emoji}<small>${x.w} stems · ${x.price}c</small><em>${s.sel.has(i) && r.chosen.includes(i) ? 'you + best' : s.sel.has(i) ? 'you' : r.chosen.includes(i) ? 'best' : ''}</em></div>`).join('')}</div><div class="lab-q">${bonus ? '🎉 Perfect! You chose the optimal bouquet. +15c bonus' : 'The optimal bouquet is outlined in green. You were ' + (r.best - V) + 'c short.'}</div><div class="lab-btns"><button onclick="LAB.bqDp()">📊 How did DP find it?</button></div>${cont}`)
+                }
+                out(`<p class="lab-note">${s.c.customer} wants a bouquet. Their vase holds <b>${s.cap} stems</b>. Pick flowers from your real stock to make the most valuable bouquet. Each flower can be used once.</p><div class="kp">${s.items.map((x, i) => `<button class="kpi${s.sel.has(i) ? ' on' : ''}" onclick="LAB.bqTog(${i})">${x.emoji}<small>${x.name}</small><small>${x.w} stems · ${x.price}c</small></button>`).join('')}</div><div class="vase"><i style="width:${Math.min(100, W / s.cap * 100)}%"></i></div><div class="lab-q">Stems used ${W}/${s.cap} · Bouquet value ${V}c</div><div class="lab-btns"><button onclick="LAB.bqSubmit()">✔ Finish bouquet</button></div><p class="lab-note">${s.msg}</p>`)
             }
-            L.bqTog = i => { const s = S.bq; s.sel.has(i) ? s.sel.delete(i) : s.sel.add(i); bqRender() };
+            function bqDpRender() {
+                const s = S.bq, r = s.res, n = s.items.length, cap = s.cap, st = r.steps, k = s.k, cur = k > 0 ? st[k - 1] : null, fin = k === st.length, hl = fin ? null : cur;
+                const has = new Map(); for (let t = 0; t < k; t++)has.set(st[t].i + ',' + st[t].c, st[t].value);
+                const pv = new Set(); if (cur && !fin) { pv.add((cur.i - 1) + ',' + cur.c); if (cur.take !== null) pv.add((cur.i - 1) + ',' + (cur.c - cur.stems)) }
+                const path = new Set(); if (fin) { let c = cap; for (let i = n; i > 0; i--) { if (r.table[i][c] !== r.table[i - 1][c]) { path.add(i + ',' + c); c -= s.items[i - 1].w } } }
+                let tb = '<div class="scroll"><table class="dpt"><tr><th></th>' + Array.from({ length: cap + 1 }, (_, c) => `<th>${c}</th>`).join('') + '</tr>';
+                for (let i = 0; i <= n; i++) {
+                    tb += `<tr><th>${i ? s.items[i - 1].emoji + '<small> ' + s.items[i - 1].w + '|' + s.items[i - 1].price + '</small>' : 'none'}</th>`;
+                    for (let c = 0; c <= cap; c++) { const key = i + ',' + c, known = i === 0 || has.has(key), v = i === 0 ? 0 : has.get(key), cl = (hl && hl.i === i && hl.c === c ? 'cur' : pv.has(key) ? 'pv' : fin && i === n && c === cap ? 'fin' : path.has(key) ? 'path' : ''); tb += `<td class="${cl}">${known ? v : '·'}</td>` } tb += '</tr>'
+                }
+                tb += '</table></div>';
+                let ex = 'Press <b>Step</b> to calculate the first cell. Rows are flowers (stems|value), columns are vase capacities, and each cell is the best value possible.';
+                if (cur) { const em = s.items[cur.i - 1].emoji; ex = `Row ${cur.i} = ${em} (${cur.stems} stems, ${cur.gain}c), capacity ${cur.c}.<br>• <b>Exclude</b> it: copy the cell above = <b>${cur.skip}</b>.<br>• <b>Include</b> it: ${cur.take !== null ? `cell (row ${cur.i - 1}, capacity ${cur.c - cur.stems}) + ${cur.gain} = ${cur.take - cur.gain} + ${cur.gain} = <b>${cur.take}</b>` : `not possible, it needs ${cur.stems} stems`}.<br>→ <b>${cur.action === 'include' ? 'INCLUDE (bigger value)' : 'EXCLUDE'}</b>, this cell = <b>${cur.value}</b>. <span class="lg">Blue cells = the previous values used.</span>` }
+                if (fin) ex = `✅ Table complete. The optimal value is the bottom-right cell: <b>${r.best}c</b>. Walking back through the green path shows the chosen flowers: ${r.chosen.map(i => s.items[i].emoji).join(' ')}`;
+                out(`<p class="lab-note">📊 This is the real table produced by the Python function <code>knapsack_steps()</code>.</p>${tb}<div class="lab-q">${ex}</div><div class="lab-btns"><button onclick="LAB.bqStep()" ${fin ? 'disabled' : ''}>Step ▶</button><button onclick="LAB.bqAuto()" ${fin ? 'disabled' : ''}>⏩ Auto-complete</button><button class="alt" onclick="LAB.bqReset()">↺ Reset</button><button class="alt" onclick="LAB.bqBack()">⬅ Back</button></div>${cont}`)
+            }
+            L.bqDp = () => { S.bq.view = 'dp'; S.bq.k = 0; bqRender() }; L.bqStep = () => { const s = S.bq; if (s.k < s.res.steps.length) s.k++; bqRender() }; L.bqAuto = () => { S.bq.k = S.bq.res.steps.length; bqRender() }; L.bqReset = () => { S.bq.k = 0; bqRender() }; L.bqBack = () => { S.bq.view = 'result'; bqRender() };
+            L.bqTog = i => { const s = S.bq; if (s.sel.has(i)) { s.sel.delete(i); s.msg = '' } else { const { W } = bqTotals(); if (W + s.items[i].w > s.cap) { s.msg = '❌ That would overflow the vase (' + (W + s.items[i].w) + ' > ' + s.cap + ' stems).'; return bqRender() } s.sel.add(i); s.msg = '' } bqRender() };
             L.bqSubmit = () => {
-                const s = S.bq, W = [...s.sel].reduce((a, i) => a + s.items[i].w, 0), V = [...s.sel].reduce((a, i) => a + s.items[i].price, 0); if (!s.sel.size) { s.msg = 'Pick at least one flower.'; return bqRender() } if (W > s.cap) { s.msg = '❌ That does not fit in the vase!'; return bqRender() }
-                const T = Array(s.cap + 1).fill(0); s.items.forEach(x => { for (let c = s.cap; c >= x.w; c--)T[c] = Math.max(T[c], T[c - x.w] + x.price) }); const opt = T[s.cap], bonus = V === opt ? 15 : 0;
-                S.res = { names: [...s.sel].map(i => s.items[i].name), bonus, value: V }; out(`<p class="lab-note">Your bouquet is worth <b>${V}c</b>. The best possible mix (found with dynamic programming) is worth <b>${opt}c</b>.</p><div class="lab-q">${bonus ? '🎉 Perfect bouquet! +15c bonus' : 'Good, but a better mix existed.'}</div>${cont}`)
+                const s = S.bq; if (!s.sel.size) { s.msg = 'Pick at least one flower.'; return bqRender() }
+                const res = pyJ('bouquet_solve(' + JSON.stringify(JSON.stringify(s.items.map(x => [x.w, x.price]))) + ',' + s.cap + ')'); if (!res) { s.msg = 'Python is not ready yet. Try again in a moment.'; return bqRender() }
+                const { V } = bqTotals(), bonus = V === res.best ? 15 : 0; s.res = res; S.res = { names: [...s.sel].map(i => s.items[i].name), bonus }; s.view = 'result'; bqRender()
+            };
+            /* ---- Petal order: a customer asks for a Fibonacci number; the growth calculator (Python memoization) helps ---- */
+            window.petalFlow = function (c) {
+                S.pt = { c }; openCtx('🌻 Petal order', {
+                    done: r => {
+                        if (!r || !r.ok) return; const reward = 25; c.served = true; c.price = reward; shopState.sales += reward; shopState.served++;
+                        shopReceipts.unshift({ customer: c.customer, name: 'Fibonacci petals fib(' + c.n + ')', price: reward, mutated: false, platform: 'Petal order', status: 'answered correctly', time: new Date().toLocaleTimeString() });
+                        document.getElementById('shop-feedback').textContent = '🌻 Correct! ' + c.customer + ' paid ' + reward + 'c for the answer.'; shopRender(); pay(reward)
+                    }
+                }, () => {
+                    GCALC.mount($('lab-body'), {
+                        n: c.n, locked: true, question: `${c.customer} asks: "How many petals does the sunflower have at growth stage <b>${c.n}</b>? The petals follow fib(${c.n})." Use the calculator, then type the answer.`,
+                        onRender: el => { el.innerHTML = `<div class="rc"><label>Your answer<input id="gc-ans" type="number" min="0" style="width:120px"></label><button onclick="LAB.ptAnswer()">✔ Answer</button></div><p class="rn" id="gc-msg"></p>` }
+                    })
+                })
+            };
+            L.ptAnswer = () => {
+                const c = S.pt.c, v = +document.getElementById('gc-ans').value, res = pyJ('fib_compare(' + c.n + ')');
+                if (res && v === res.plain) { S.res = { ok: true }; out(`<div class="lab-q">✅ Correct! fib(${c.n}) = ${res.plain}. Reward +25c.</div><p class="lab-note">Plain recursion needed ${res.plain_calls.toLocaleString()} calls, memoization only ${res.memo_calls}.</p>${cont}`) }
+                else document.getElementById('gc-msg').textContent = '❌ Not quite. Run the calculator and read the result for fib(' + c.n + ').'
             };
             /* ---- hook into the real shop flow ---- */
             const oServe = window.shopServe, oSell = window.shopSellNow, oRider = window.riderServe, oNew = window.shopNewOrder, oNext = window.shopStartNextDay;
@@ -9871,7 +10192,8 @@ def shop_sell_flower(requested_name):
                 const c = shopState.current; if (!c || c.served || shopState.closed) return oServe();
                 if (window.PREP && !PREP.open) { showToast('🌅 The shop is not open yet. Finish your morning tasks first (see 📋 Today).'); return }
                 if (c.bouquet) return bqFlow(c);
-                if (!c.delivery && shopGetStock().some(f => f.name === c.name)) return searchFlow(c, () => oServe());
+                if (c.petal) return window.petalFlow(c);
+                if (!c.delivery && shopGetStock().some(f => f.name === c.name)) { if (shelfItems().length >= 2 && !SH.sorted) return sortPrompt(c); return searchFlow(c, () => oServe()) }
                 return oServe()
             };
             window.shopSellNow = function () { const c = shopState.current, was = c && c.served; oSell.apply(this, arguments); if (c && !was && c.served && !c.delivery && !c.bouquet && !c.left) setTimeout(() => changeFlow(c), 500) };
@@ -9879,38 +10201,79 @@ def shop_sell_flower(requested_name):
             const oRend = window.shopRender, oNextC = window.shopNextCustomer;
             window.shopRender = function () { oRend.apply(this, arguments); const b = $('shop-next-btn'); if (b && shopState.inTransit) { b.disabled = true; b.classList.add('opacity-40'); b.textContent = '🛵 Waiting for the rider to arrive…' } else if (b && b.textContent.indexOf('Waiting') >= 0) b.textContent = '👋 Next customer' };
             window.shopNextCustomer = function () { if (shopState.inTransit) { showToast('🛵 The rider is still delivering. Wait until the package arrives!'); return } oNextC() };
-            /* ---- delivery tracking: the rider travels the Dijkstra-shortest route to the customer's home ---- */
-            function djPath(goal) { const d = ND.map((_, i) => i ? Infinity : 0), prev = {}, vis = new Set(); for (let k = 0; k < ND.length; k++) { let u = -1; ND.forEach((_, i) => { if (!vis.has(i) && d[i] < Infinity && (u < 0 || d[i] < d[u])) u = i }); if (u < 0) break; vis.add(u); ED.forEach(e => { const b = e[0] === u ? e[1] : e[1] === u ? e[0] : -1; if (b < 0) return; const nd = d[u] + dw(e); if (nd < d[b]) { d[b] = nd; prev[b] = u } }) } const path = [goal]; let x = goal; while (x !== 0) { x = prev[x]; path.unshift(x) } return { path, T: d[goal] } }
-            let trackTimer = null;
-            function trackStart(c) {
-                const goal = [3, 4, 5][Rn(3)], r = djPath(goal); shopState.inTransit = { c, goal, path: r.path, T: r.T, t0: Date.now(), dur: Math.max(9000, r.T * 1000), w: wx() };
-                clearInterval(trackTimer); trackTimer = setInterval(trackTick, 400); $('track-btn').classList.add('on'); shopRender(); openTrack()
+            /* ---- delivery tracking: YOU choose the route. Python (Dijkstra) finds the fastest one and re-routes after a road event ---- */
+            let trackTimer = null; const trk = () => shopState.inTransit;
+            const edgesJ = () => JSON.stringify(ED.map(e => [e[0], e[1], dw(e)]));
+            const isClosed = (t, a, b) => t.closed.some(x => (x[0] === a && x[1] === b) || (x[0] === b && x[1] === a));
+            function djFallback(from, t) {
+                const d = ND.map(() => Infinity), prev = {}, vis = new Set(); d[from] = 0; for (let k = 0; k < ND.length; k++) { let u = -1; ND.forEach((_, i) => { if (!vis.has(i) && d[i] < Infinity && (u < 0 || d[i] < d[u])) u = i }); if (u < 0) break; vis.add(u); ED.forEach(e => { if (isClosed(t, e[0], e[1])) return; const b = e[0] === u ? e[1] : e[1] === u ? e[0] : -1; if (b < 0) return; if (d[u] + dw(e) < d[b]) { d[b] = d[u] + dw(e); prev[b] = u } }) }
+                if (d[t.goal] === Infinity) return { ok: false }; const path = [t.goal]; let x = t.goal; while (x !== from) { x = prev[x]; path.unshift(x) } return { ok: true, time: d[t.goal], path }
             }
-            function trackProg() { const t = shopState.inTransit; return t ? Math.min(1, (Date.now() - t.t0) / t.dur) : 1 }
+            function bestRoute(from, t, closed) { const r = pyJ('route_dijkstra(' + JSON.stringify(edgesJ()) + ',' + from + ',' + t.goal + ',' + JSON.stringify(JSON.stringify(closed || t.closed)) + ')'); return r && r.ok !== undefined ? r : djFallback(from, t) }
+            function neighborsOf(t) { const r = []; ED.forEach(e => { const n = e[0] === t.node ? e[1] : e[1] === t.node ? e[0] : -1; if (n >= 0 && !isClosed(t, e[0], e[1])) r.push({ n, w: dw(e) }) }); return r }
+            function trackStart(c) {
+                const goal = [3, 4, 5][Rn(3)]; shopState.inTransit = { c, goal, node: 0, visited: [0], time: 0, closed: [], event: false, freeHint: false, hint: null, moving: null, auto: false, alert: '', w: wx() };
+                clearInterval(trackTimer); trackTimer = setInterval(trackTick, 120); $('track-btn').classList.add('on'); shopRender(); openTrack()
+            }
             function openTrack() { $('lab-tabs').style.display = 'none'; $('lab-title').textContent = '📦 Delivery tracking'; ctx = null; $('lab-modal').classList.add('open'); trackRender() }
-            function trackRender() {
-                const t = shopState.inTransit; if (!t || $('lab-title').textContent.indexOf('tracking') < 0) return; const pts = t.path.map(i => ND[i]), seg = []; let tot = 0; for (let i = 1; i < pts.length; i++) { const l = Math.hypot(pts[i][1] - pts[i - 1][1], pts[i][2] - pts[i - 1][2]); seg.push(l); tot += l }
-                let want = trackProg() * tot, k = 0; while (k < seg.length - 1 && want > seg[k]) { want -= seg[k]; k++ } const f = seg[k] ? Math.min(1, want / seg[k]) : 1, rx = pts[k][1] + (pts[k + 1][1] - pts[k][1]) * f, ry = pts[k][2] + (pts[k + 1][2] - pts[k][2]) * f;
-                let svg = '<svg viewBox="0 0 540 220" class="dj-svg">'; ED.forEach(e => { const a = ND[e[0]], b = ND[e[1]], w = dw(e); svg += `<line x1="${a[1]}" y1="${a[2]}" x2="${b[1]}" y2="${b[2]}" class="${w !== e[2] ? 'hot' : ''}"/><text x="${(a[1] + b[1]) / 2}" y="${(a[2] + b[2]) / 2 - 5}" class="w ${w !== e[2] ? 'hot' : ''}">${w}</text>` });
-                for (let i = 1; i < t.path.length; i++) { const a = ND[t.path[i - 1]], b = ND[t.path[i]]; svg += `<line x1="${a[1]}" y1="${a[2]}" x2="${b[1]}" y2="${b[2]}" class="best"/>` }
-                ND.forEach((n, i) => { svg += `<g class="node${i === t.goal ? ' v' : ''}"><circle cx="${n[1]}" cy="${n[2]}" r="22"/><text x="${n[1]}" y="${n[2] + 4}">${n[0].split(' ')[0]}</text><text x="${n[1]}" y="${n[2] + 38}" class="nm">${n[0].split(' ')[1]}</text></g>` });
-                svg += `<text x="${rx}" y="${ry - 26}" style="font-size:24px">🛵</text></svg>`; const left = Math.max(0, Math.ceil((1 - trackProg()) * t.dur / 1000));
-                const weather = t.w === 'Flood' ? '🌊 Flood: roads through the Bridge are 3× slower.' : t.w === 'Windy' ? '💨 Windy: roads through the Hill are 2× slower.' : t.w === 'Drizzle' ? '🌧 Drizzle: every road is a little slower.' : '☀️ Good weather: normal road times.';
-                out(`<p class="lab-note">📦 <b>${t.c.customer}</b>'s parcel is on its way to <b>${ND[t.goal][0]}</b>.</p>${svg}<div class="lab-q">Route: ${t.path.map(i => ND[i][0].split(' ')[1]).join(' → ')} · ${t.T} min · arrives in ~${left}s</div><p class="lab-note">${weather} The app picks the <b>fastest route using Dijkstra's algorithm</b> (numbers on the roads are minutes). You can serve the next customer after the package arrives.</p>`)
+            function move(t, nb) { t.moving = { from: t.node, to: nb.n, w: nb.w, t0: Date.now(), dur: Math.max(900, nb.w * 550) }; t.hint = null }
+            function autoStep(t) { if (t.moving || t.node === t.goal) return; const r = bestRoute(t.node, t); if (!r.ok || r.path.length < 2) return; const nb = neighborsOf(t).find(x => x.n === r.path[1]); if (nb) move(t, nb) }
+            function maybeEvent(t) {
+                if (t.event || t.visited.length < 2) return; const r = bestRoute(t.node, t, []); if (!r.ok || r.path.length < 3) return;
+                const a = r.path[0], b = r.path[1], test = bestRoute(t.node, t, [[a, b]]); if (!test.ok) return; t.closed.push([a, b]); t.event = true; t.freeHint = true;
+                const why = (a === 2 || b === 2) ? 'The bridge is closed' : (t.w === 'Flood' ? 'Flooding' : 'An accident') + ' blocks the road'; t.alert = `🚧 ${why}: ${ND[a][0].split(' ')[1]} ↔ ${ND[b][0].split(' ')[1]} is closed! Choose another way, or press Re-route to ask Dijkstra.`; showToast('🚧 Road closed ahead! Re-route the rider.')
             }
             function trackTick() {
-                const t = shopState.inTransit; if (!t) { clearInterval(trackTimer); return } trackRender(); if (trackProg() >= 1) {
-                    clearInterval(trackTimer); const tip = Math.max(0, 20 - t.T); shopState.inTransit = null; $('track-btn').classList.remove('on');
-                    document.getElementById('shop-feedback').textContent = '✅ Delivered! ' + t.c.customer + "'s package reached " + ND[t.goal][0] + '.' + (tip ? ' Fast route tip +' + tip + 'c' : ''); if (tip) pay(tip); showToast('📦 Package delivered! You can serve the next customer.');
-                    if ($('lab-title').textContent.indexOf('tracking') >= 0) out('<p class="lab-note">✅ Delivered to ' + ND[t.goal][0] + ' in ' + t.T + ' min.</p><div class="lab-btns"><button onclick="LAB.ccancel()">Close</button></div>'); shopRender()
+                const t = trk(); if (!t) { clearInterval(trackTimer); return }
+                if (t.moving && Date.now() - t.moving.t0 >= t.moving.dur) {
+                    t.node = t.moving.to; t.time += t.moving.w; t.visited.push(t.node); t.moving = null;
+                    if (t.node === t.goal) return trackFinish(t); maybeEvent(t); if (t.auto) autoStep(t); trackRender(); return
                 }
+                trackRiderPos(t)
             }
+            /* while the rider drives, only the 🛵 icon moves; the buttons and stops stay in place so they can be clicked */
+            function trackRiderPos(t) {
+                if (!t.moving) return; const el = $('rd-rider'); if (!el) return; const f = Math.min(1, (Date.now() - t.moving.t0) / t.moving.dur), A = ND[t.moving.from], B = ND[t.moving.to];
+                el.setAttribute('x', A[1] + (B[1] - A[1]) * f); el.setAttribute('y', A[2] + (B[2] - A[2]) * f - 26)
+            }
+            function trackFinish(t) {
+                clearInterval(trackTimer); const b = bestRoute(0, t, t.closed), bt = b.ok ? b.time : t.time, extra = Math.max(0, t.time - bt), tip = t.auto ? 0 : Math.max(0, 15 - 3 * extra);
+                shopState.inTransit = null; $('track-btn').classList.remove('on');
+                document.getElementById('shop-feedback').textContent = '✅ Delivered! ' + t.c.customer + "'s package reached " + ND[t.goal][0] + ' in ' + t.time + ' min.' + (tip ? ' Route tip +' + tip + 'c' : '');
+                if (tip) pay(tip); showToast('📦 Package delivered! You can serve the next customer.');
+                if ($('lab-title').textContent.indexOf('tracking') >= 0) out(`<p class="lab-note">✅ Delivered to <b>${ND[t.goal][0]}</b> in <b>${t.time} min</b>.</p><div class="lab-q">Your route: ${t.visited.map(i => ND[i][0].split(' ')[1]).join(' → ')}<br>Fastest possible (Dijkstra in Python${t.closed.length ? ', with the closed road' : ''}): ${b.ok ? b.path.map(i => ND[i][0].split(' ')[1]).join(' → ') + ' = ' + bt + ' min' : '-'}<br>${t.auto ? 'Auto-route used: no tip.' : extra === 0 ? '🎉 Perfect route! Tip +' + tip + 'c' : 'You were ' + extra + ' min slower. Tip +' + tip + 'c'}</div><div class="lab-btns"><button onclick="LAB.ccancel()">Close</button></div>`); shopRender()
+            }
+            function trackRender() {
+                const t = trk(); if (!t || $('lab-title').textContent.indexOf('tracking') < 0) return;
+                const nbs = neighborsOf(t), vis = new Set(); for (let i = 1; i < t.visited.length; i++)vis.add(Math.min(t.visited[i - 1], t.visited[i]) + '-' + Math.max(t.visited[i - 1], t.visited[i]));
+                const hint = t.hint && t.hint.ok ? new Set(t.hint.path.slice(1).map((n, i) => Math.min(t.hint.path[i], n) + '-' + Math.max(t.hint.path[i], n))) : new Set();
+                let svg = '<svg viewBox="0 0 540 220" class="dj-svg">';
+                ED.forEach(e => {
+                    const A = ND[e[0]], B = ND[e[1]], w = dw(e), k = Math.min(e[0], e[1]) + '-' + Math.max(e[0], e[1]), cl = isClosed(t, e[0], e[1]);
+                    svg += `<line x1="${A[1]}" y1="${A[2]}" x2="${B[1]}" y2="${B[2]}" class="${cl ? 'cl' : vis.has(k) ? 'vis' : hint.has(k) ? 'best' : w !== e[2] ? 'hot' : ''}"/><text x="${(A[1] + B[1]) / 2}" y="${(A[2] + B[2]) / 2 - 5}" class="w ${w !== e[2] ? 'hot' : ''}">${cl ? '🚧' : w}</text>`
+                });
+                ND.forEach((n, i) => { const go = !t.moving && nbs.some(x => x.n === i); svg += `<g class="node${i === t.goal ? ' v' : ''}${go ? ' go' : ''}" ${go ? `onclick="LAB.rdGo(${i})"` : ''}><circle cx="${n[1]}" cy="${n[2]}" r="22"/><text x="${n[1]}" y="${n[2] + 4}">${n[0].split(' ')[0]}</text><text x="${n[1]}" y="${n[2] + 38}" class="nm">${n[0].split(' ')[1]}${i === t.goal ? ' (customer)' : ''}</text></g>` });
+                let rx = ND[t.node][1], ry = ND[t.node][2]; if (t.moving) { const f = Math.min(1, (Date.now() - t.moving.t0) / t.moving.dur), A = ND[t.moving.from], B = ND[t.moving.to]; rx = A[1] + (B[1] - A[1]) * f; ry = A[2] + (B[2] - A[2]) * f }
+                svg += `<text id="rd-rider" x="${rx}" y="${ry - 26}" style="font-size:24px;text-anchor:middle;pointer-events:none">🛵</text></svg>`;
+                const weather = t.w === 'Flood' ? '🌊 Flood: roads through the Bridge are 3× slower.' : t.w === 'Windy' ? '💨 Windy: roads through the Hill are 2× slower.' : t.w === 'Drizzle' ? '🌧 Drizzle: every road is a little slower.' : '☀️ Good weather: normal road times.';
+                out(`<p class="lab-note">📦 <b>${t.c.customer}</b>'s parcel goes to <b>${ND[t.goal][0]}</b>. The rider is at <b>${ND[t.node][0]}</b>. <b>Tap a glowing stop</b> to send the rider there. Numbers on the roads are minutes.</p>${svg}
+ ${t.alert ? `<div class="lab-q alertq">${t.alert}</div>` : ''}<div class="lab-stats">Time so far: <b>${t.time} min</b> · ${weather}</div>${t.hint && t.hint.ok ? `<div class="lab-q">💡 Dijkstra suggests: ${t.hint.path.map(i => ND[i][0].split(' ')[1]).join(' → ')} (${t.hint.time} min left)</div>` : ''}
+ <div class="lab-btns"><button onclick="LAB.rdHint()">${t.freeHint ? '🔄 Re-route (free)' : '💡 Ask Dijkstra (2c)'}</button><button class="alt" onclick="LAB.rdAuto()">🤖 Auto-route (no tip)</button></div><p class="lab-note">You can close this window. The 📦 button at the top brings it back. The next customer comes after the package arrives.</p>`)
+            }
+            L.rdGo = n => { const t = trk(); if (!t || t.moving) return; const nb = neighborsOf(t).find(x => x.n === n); if (nb) { t.auto = false; move(t, nb); trackRender() } };
+            L.rdHint = () => { const t = trk(); if (!t) return; if (t.freeHint) t.freeHint = false; else if (!spendC(2)) { showToast('❌ Asking Dijkstra costs 2 coins.'); return } t.hint = bestRoute(t.node, t); trackRender() };
+            L.rdAuto = () => { const t = trk(); if (!t) return; t.auto = true; autoStep(t); trackRender() };
             $('track-btn').addEventListener('click', () => { if (shopState.inTransit) openTrack() });
             window.shopNewOrder = function () {
-                oNew.apply(this, arguments); const c = shopState.current; const forced = shopState.day === 1 && shopState.customerIndex === 4; if (c && !c.delivery && (forced || (!c.mutated && Math.random() < 0.35 && shopGetStock().length >= 3))) {
-                    const cu = shopState.customers[Rn(shopState.customers.length)];
-                    shopState.current = { bouquet: true, name: 'Bouquet order', customer: cu.name, avatar: '💐', price: 0, served: false, mutated: false, dialogue: 'Hi! I would like a bouquet. My vase only fits a few stems, so pick the best mix of flowers for it!', forced: forced };
+                oNew.apply(this, arguments); const c = shopState.current; if (!c || c.delivery || c.mutated) return;
+                const idx = shopState.customerIndex, day = shopState.day, n = shopGetStock().length, cu = shopState.customers[Rn(shopState.customers.length)];
+                if (n >= 3 && ((day % 2 === 0 && idx === 1) || (day === 1 && idx === 4))) {
+                    shopState.current = { bouquet: true, name: 'Bouquet order', customer: cu.name, avatar: '💐', price: 0, served: false, mutated: false, dialogue: 'Hi! I would like a bouquet. My vase only fits a few stems, so pick the best mix of flowers for it!' };
                     document.getElementById('shop-feedback').textContent = '💐 ' + cu.name + ' wants a bouquet. Press Serve and choose which flowers go in.'
+                }
+                else if (day >= 3 && day % 2 === 1 && idx === 1 && window.petalFlow) {
+                    shopState.current = { petal: true, n: 8 + Rn(8), name: 'Petal order', customer: cu.name, avatar: '🌻', price: 0, served: false, mutated: false, dialogue: 'Hello! I collect sunflowers whose petals follow the Fibonacci sequence. Can you work out the number for me?' };
+                    document.getElementById('shop-feedback').textContent = '🌻 ' + cu.name + ' has a Fibonacci petal question. Press Serve to answer it.'
                 }
             };
             function injectShelfBtn() { const st = $('shop-stock'); if (st && !$('shelf-btn')) { const b = document.createElement('button'); b.id = 'shelf-btn'; b.type = 'button'; st.parentElement.insertBefore(b, st) } const b = $('shelf-btn'); if (b) b.textContent = '🧺 Organize shelf (' + (SH.sorted ? 'sorted ✔' : 'unsorted') + ')' }
@@ -10007,7 +10370,8 @@ def shop_sell_flower(requested_name):
                     aria-label="Close">✕</button></div>
             <div class="rec-tabs" id="rec-tabs"><button type="button" data-t="inv" class="on">📦
                     Inventory</button><button type="button" data-t="lb">🏆 Leaderboard</button><button type="button"
-                    data-t="reg">🌱 Plant registry</button></div>
+                    data-t="reg">🌱 Plant registry</button><button type="button" data-t="calc">🌻 Growth
+                    calculator</button></div>
             <div id="rec-body"></div>
         </div>
     </div>
@@ -10380,16 +10744,25 @@ def shop_sell_flower(requested_name):
             /* ===== modal ===== */
             let tab = 'inv', ist = { key: 'value', desc: 1, alg: 'merge', res: null }, lbAlg = 'merge', lk = null;
             const out = h => { $('rec-body').innerHTML = h };
-            function show(t) { tab = t || tab; document.querySelectorAll('#rec-tabs button').forEach(b => b.classList.toggle('on', b.dataset.t === tab)); ({ inv: rInv, lb: rLb, reg: rReg })[tab]() }
+            function show(t) { tab = t || tab; document.querySelectorAll('#rec-tabs button').forEach(b => b.classList.toggle('on', b.dataset.t === tab)); ({ inv: rInv, lb: rLb, reg: rReg, calc: () => GCALC.mount($('rec-body'), {}) })[tab]() }
             const KEYS = { value: ['Value (coins)', f => f.price], weight: ['Weight (g)', f => f.w], growth: ['Growth duration (days)', f => f.gd] };
+            const SR = { inv: null, lb: null };
+            function valsFor(kind) {
+                if (kind === 'inv') { const it = inv(), key = KEYS[ist.key][1]; return { vals: it.map(key), labels: it.map(f => f.emoji + ' ' + f.name + ' (' + key(f) + ')') } }
+                const me = { name: GAMEUSER || 'You', score: myScore() }, rows = BOTS.concat(Object.values(allProfiles()).filter(u => u.name.toLowerCase() !== (GAMEUSER || '').toLowerCase()).map(u => ({ name: u.name, score: (u.data && u.data.best && u.data.best.score) || 0 })), [me]); return { vals: rows.map(x => x.score), labels: rows.map(x => x.name + ' (' + x.score + ')') }
+            }
+            function searchHtml(kind) {
+                const { vals, labels } = valsFor(kind); if (!vals.length) return ''; const r = SR[kind];
+                return `<div class="srch"><b>🔎 Search lab</b> <span class="rn">Pick ${kind === 'inv' ? 'a flower (searching by ' + KEYS[ist.key][0] + ')' : 'a player (searching by score)'} and compare how many steps each method needs.</span><div class="rc"><label>Look for<select id="s-val-${kind}">${vals.map((v, i) => `<option value="${v}">${labels[i].replace(/</g, '&lt;')}</option>`).join('')}</select></label><button id="s-go-${kind}">Compare searches</button></div>${r ? `<table class="rt"><tr><th>Method</th><th>Steps</th><th>Needs</th></tr><tr><td>Linear search</td><td><b>${r.linear}</b></td><td>nothing: checks one by one</td></tr><tr><td>Binary search</td><td><b>${r.binary}</b></td><td>a sorted list</td></tr><tr><td>Hash lookup</td><td><b>${r.hash}</b></td><td>a hash table built once</td></tr></table>` : ''}</div>`
+            }
             function rInv() {
                 let it = inv(); const r = ist.res; if (r) it = r.arr;
                 const rows = it.map(f => `<tr><td>${f.emoji} ${f.name}</td><td>${f.w} g</td><td>${f.price}c</td><td>${f.gd} d</td></tr>`).join('') || '<tr><td colspan="4">No bloomed flowers yet. Harvest-ready plants appear here.</td></tr>';
-                out(`<p class="rn">Your ready flowers. Sort the inventory with your own sorting algorithms.</p><div class="rc"><label>Sort by <select id="r-key">${Object.entries(KEYS).map(([k, v]) => `<option value="${k}"${ist.key === k ? ' selected' : ''}>${v[0]}</option>`).join('')}</select></label><label>Order <select id="r-ord"><option value="1"${ist.desc ? ' selected' : ''}>High → Low</option><option value="0"${ist.desc ? '' : ' selected'}>Low → High</option></select></label><label>Algorithm <select id="r-alg">${Object.entries(ALGN).map(([k, v]) => `<option value="${k}"${ist.alg === k ? ' selected' : ''}>${v}</option>`).join('')}</select></label><button id="r-go">Sort</button></div>${r ? `<p class="rn ok">Sorted by ${KEYS[ist.key][0]} using <b>${ALGN[ist.alg]}</b>: <b>${r.comps}</b> comparisons. All three algorithms on this list: ${r.cmp}</p>` : ''}<table class="rt"><tr><th>Flower</th><th>Weight</th><th>Value</th><th>Growth</th></tr>${rows}</table>`)
+                out(`<p class="rn">Your ready flowers. Sort the inventory with your own sorting algorithms.</p><div class="rc"><label>Sort by <select id="r-key">${Object.entries(KEYS).map(([k, v]) => `<option value="${k}"${ist.key === k ? ' selected' : ''}>${v[0]}</option>`).join('')}</select></label><label>Order <select id="r-ord"><option value="1"${ist.desc ? ' selected' : ''}>High → Low</option><option value="0"${ist.desc ? '' : ' selected'}>Low → High</option></select></label><label>Algorithm <select id="r-alg">${Object.entries(ALGN).map(([k, v]) => `<option value="${k}"${ist.alg === k ? ' selected' : ''}>${v}</option>`).join('')}</select></label><button id="r-go">Sort</button></div>${r ? `<p class="rn ok">Sorted by ${KEYS[ist.key][0]} using <b>${ALGN[ist.alg]}</b>: <b>${r.comps}</b> comparisons. All three algorithms on this list: ${r.cmp}</p>` : ''}<table class="rt"><tr><th>Flower</th><th>Weight</th><th>Value</th><th>Growth</th></tr>${rows}</table>${searchHtml('inv')}`)
             }
             function rLb() {
                 const me = { name: GAMEUSER || 'You', score: myScore(), me: 1 }, others = Object.values(allProfiles()).filter(u => u.name.toLowerCase() !== (GAMEUSER || '').toLowerCase()).map(u => ({ name: u.name, score: (u.data && u.data.best && u.data.best.score) || 0 })), rows = BOTS.concat(others, [me]); const r = sortBy(lbAlg, rows, x => x.score, true);
-                out(`<p class="rn">🏆 Season harvest score = coins from sales + harvest rewards. Ranked live with a sorting algorithm.</p><div class="rc"><label>Rank with <select id="r-lbalg">${Object.entries(ALGN).map(([k, v]) => `<option value="${k}"${lbAlg === k ? ' selected' : ''}>${v}</option>`).join('')}</select></label><span class="rn">${r.comps} comparisons for ${rows.length} players</span></div><table class="rt lb"><tr><th>#</th><th>Player</th><th>Score</th></tr>${r.arr.map((x, i) => `<tr class="${x.me ? 'me' : ''}"><td>${i + 1}</td><td>${x.me ? '⭐ ' : ''}${x.name.replace(/</g, '&lt;')}${x.me ? ' (you)' : ''}</td><td>${x.score}</td></tr>`).join('')}</table>`)
+                out(`<p class="rn">🏆 Season harvest score = coins from sales + harvest rewards. Ranked live with a sorting algorithm.</p><div class="rc"><label>Rank with <select id="r-lbalg">${Object.entries(ALGN).map(([k, v]) => `<option value="${k}"${lbAlg === k ? ' selected' : ''}>${v}</option>`).join('')}</select></label><span class="rn">${r.comps} comparisons for ${rows.length} players</span></div><table class="rt lb"><tr><th>#</th><th>Player</th><th>Score</th></tr>${r.arr.map((x, i) => `<tr class="${x.me ? 'me' : ''}"><td>${i + 1}</td><td>${x.me ? '⭐ ' : ''}${x.name.replace(/</g, '&lt;')}${x.me ? ' (you)' : ''}</td><td>${x.score}</td></tr>`).join('')}</table>${searchHtml('lb')}`)
             }
             function rReg() {
                 regSync(); const lf = (REG.size / REG.cap).toFixed(2);
@@ -10410,6 +10783,7 @@ def shop_sell_flower(requested_name):
                 else if (t.dataset && t.dataset.t && t.closest('#rec-tabs')) show(t.dataset.t);
                 else if (t.id === 'r-go') { ist.key = $('r-key').value; ist.desc = +$('r-ord').value; ist.alg = $('r-alg').value; const it = inv(), k = KEYS[ist.key][1], r = sortBy(ist.alg, it, k, !!ist.desc); r.cmp = ['insertion', 'merge', 'quick'].map(a => a[0].toUpperCase() + a.slice(1) + ' ' + sortBy(a, it, k, !!ist.desc).comps).join(' · '); ist.res = r; rInv() }
                 else if (t.id === 'l-go') lookup()
+                else if (t.id === 's-go-inv' || t.id === 's-go-lb') { const kind = t.id.slice(5), { vals } = valsFor(kind), target = +$('s-val-' + kind).value; try { SR[kind] = JSON.parse(pyodideInstance.runPython('search_compare(' + JSON.stringify(JSON.stringify(vals)) + ',' + target + ')')) } catch (e) { SR[kind] = null; showToast('Python is still loading.') } kind === 'inv' ? rInv() : rLb() }
             });
             document.addEventListener('change', e => { if (e.target.id === 'r-lbalg') { lbAlg = e.target.value; rLb() } });
         })();
@@ -10678,21 +11052,21 @@ def shop_sell_flower(requested_name):
     <script id="prep-js">
         (function () {
             const $ = i => document.getElementById(i), Rn = n => Math.floor(Math.random() * n);
-            const P = window.PREP = { day: 0, crop: 'Tulip', n: 2, planted: 0, bloomed: false, open: false, pop: false, shown: 0 };
+            const P = window.PREP = { day: 0, crop: 'Tulip', crop2: 'Rose', n: 2, planted: 0, planted2: 0, bloomed: false, open: false, pop: false, shown: 0 };
             const py = c => { try { return pyodideInstance.runPython(c) } catch (e) { return null } };
             const stock = () => { try { return shopGetStock().length } catch (e) { return 0 } };
             const isSorted = () => !!(window.SHELF && SHELF.sorted) && stock() >= 2;
-            const doneCount = () => P.planted >= P.n ? (P.bloomed ? (isSorted() ? 3 : 2) : 1) : 0;
+            const ok1 = () => P.planted >= P.n && P.planted2 >= P.n, doneCount = () => ok1() ? (P.bloomed ? (isSorted() ? 3 : 2) : 1) : 0;
             function newDay() {
                 const opts = [...(($('crop-selector') || {}).options || [])].map(o => o.value).filter(n => (shopState.unlocked || []).includes(n) && !(window.cropLocked && cropLocked(n)));
-                const L = opts.length ? opts : ['Tulip']; Object.assign(P, { day: shopState.day, crop: L[Rn(L.length)], n: 2, planted: 0, bloomed: false, open: false, pop: true, shown: 0 }); render()
+                const L = opts.length > 1 ? opts : ['Tulip', 'Rose'], a = Rn(L.length); let b = Rn(L.length - 1); if (b >= a) b++; Object.assign(P, { day: shopState.day, crop: L[a], crop2: L[b], n: 2, planted: 0, planted2: 0, bloomed: false, open: false, pop: true, shown: 0 }); render()
             }
             function stepHtml(d) {
-                const em = ((typeof SHOP_FLOWERS !== 'undefined' && SHOP_FLOWERS[P.crop]) || {}).emoji || '🌸';
+                const EM = n => ((typeof SHOP_FLOWERS !== 'undefined' && SHOP_FLOWERS[n]) || {}).emoji || '🌸', em = EM(P.crop), em2 = EM(P.crop2);
                 const dots = '<div class="pm-dots">' + [0, 1, 2].map(i => `<i class="${i < d ? 'ok' : i === d ? 'now' : ''}"></i>`).join('') + '</div>';
                 const card = (ico, title, txt, btn) => `${dots}<div class="pm-step"><div class="pm-ico">${ico}</div><div><b>${title}</b><p>${txt}</p></div></div>${btn}`;
-                if (d === 0) return card('🌱', 'Step 1 of 3 · Plant', `Plant <b>${P.n} ${em} ${P.crop}</b> in your Garden. Pick the seed on the shelf, choose a plot, then plant it. (${Math.min(P.planted, P.n)}/${P.n} planted)`, `<button type="button" class="pm-go" data-pa="garden">🌱 Go to Garden</button>`);
-                if (d === 1) return card('🌙', 'Step 2 of 3 · Sleep', `Your ${em} ${P.crop} are planted! Let them grow overnight so they bloom and you have flowers in stock.`, `<button type="button" class="pm-go" data-pa="grow">🌙 Sleep until morning</button>`);
+                if (d === 0) return card('🌱', 'Step 1 of 3 · Plant', `Plant <b>${P.n} ${em} ${P.crop}</b> and <b>${P.n} ${em2} ${P.crop2}</b> in your Garden. Pick the seed on the shelf, choose a plot, then plant it. (${em} ${Math.min(P.planted, P.n)}/${P.n} · ${em2} ${Math.min(P.planted2, P.n)}/${P.n})`, `<button type="button" class="pm-go" data-pa="garden">🌱 Go to Garden</button>`);
+                if (d === 1) return card('🌙', 'Step 2 of 3 · Sleep', `Your ${em} ${P.crop} and ${em2} ${P.crop2} are planted! Let them grow overnight so they bloom and you have 4 flowers in stock.`, `<button type="button" class="pm-go" data-pa="grow">🌙 Sleep until morning</button>`);
                 if (d === 2) return card('🧺', 'Step 3 of 3 · Organize', `Your flowers bloomed! Organize your shelf by catalog number so you can find them fast when customers arrive.`, `<button type="button" class="pm-go" data-pa="org">🧺 Organize the shelf</button>`);
                 return `${dots}<div class="pm-step"><div class="pm-ico">🏪</div><div><b>All set!</b><p>Your garden is planted, your flowers are in stock and your shelf is organized. The shop is ready to open.</p></div></div><button type="button" class="pm-go go" data-pa="open">🏪 Open the store</button>`
             }
@@ -10708,7 +11082,7 @@ def shop_sell_flower(requested_name):
             function advance() { const d = doneCount(); if (d > P.shown) { P.shown = d; P.pop = true } render(); maybePop() }
             function poll() {
                 if (typeof shopState === 'undefined' || !shopState) return; if (P.day !== shopState.day) { newDay(); return }
-                if (!P.open && !P.bloomed) { const n = py('t5_count_crop("' + P.crop + '")'); if (n !== null) P.planted = n } advance()
+                if (!P.open && !P.bloomed) { const n = py('t5_count_crop("' + P.crop + '")'), m = py('t5_count_crop("' + P.crop2 + '")'); if (n !== null) P.planted = n; if (m !== null) P.planted2 = m } advance()
             }
             setInterval(poll, 1000);
             const close = () => $('prep-modal').classList.remove('open');
@@ -10717,8 +11091,8 @@ def shop_sell_flower(requested_name):
                 if (t.closest && t.closest('#pc-h')) { render(); $('prep-modal').classList.add('open'); return }
                 if (t.id === 'pm-x' || t.id === 'prep-modal') { close(); return }
                 const a = t.dataset && t.dataset.pa; if (!a) return;
-                if (a === 'garden') { close(); switchTab('game'); showToast('🌱 Select a plot, pick a seed on the shelf, and plant ' + P.n + ' ' + P.crop + '.') }
-                else if (a === 'grow') { const n = py('t5_prep_bloom("' + P.crop + '",' + P.n + ')'); if (n) { P.bloomed = true; if (window.sfx) sfx.bloom(); close(); showToast('🌙 Morning! Your ' + P.crop + ' flowers bloomed and are now in stock.'); setTimeout(advance, 400) } else render() }
+                if (a === 'garden') { close(); switchTab('game'); showToast('🌱 Plant ' + P.n + ' ' + P.crop + ' and ' + P.n + ' ' + P.crop2 + '.') }
+                else if (a === 'grow') { const n = py('t5_prep_bloom("' + P.crop + '",' + P.n + ')'), m = py('t5_prep_bloom("' + P.crop2 + '",' + P.n + ')'); if (n || m) { P.bloomed = true; if (window.sfx) sfx.bloom(); close(); showToast('🌙 Morning! Your flowers bloomed and are now in stock.'); setTimeout(advance, 400) } else render() }
                 else if (a === 'org') { close(); switchTab('shop'); setTimeout(() => { const b = $('shelf-btn'); if (b) b.click(); else showToast('🧺 Press "Organize shelf" in the Flower Shop.') }, 350) }
                 else if (a === 'open') { P.open = true; render(); close(); switchTab('shop'); showToast('🏪 The shop is open! Serve your first customer.'); if (window.sfx) sfx.win() }
             });
@@ -10757,6 +11131,350 @@ def shop_sell_flower(requested_name):
                 const b = $('expand-btn'); if (!b || typeof gardenPlants === 'undefined') return; const full = Object.keys(gardenPlants).length >= GRID_ROWS * GRID_COLS && GRID_ROWS < MAXR; b.style.display = full ? '' : 'none';
                 if (full && !told && document.body.classList.contains('garden-open')) { told = true; showToast('🌳 Every plot is full! Tap ➕ Expand garden to add a new row.') } if (!full) told = false
             }, 800);
+        })();
+    </script>
+    <style id="dp-css">
+        .kpi.opt {
+            outline: 3px solid #22c55e;
+            outline-offset: 2px
+        }
+
+        .kpi em {
+            font-size: 10px;
+            font-style: normal;
+            color: #86efac;
+            min-height: 12px
+        }
+
+        .kp .kpi {
+            cursor: pointer
+        }
+
+        .vase {
+            height: 10px;
+            border-radius: 6px;
+            background: #33204a;
+            margin: 6px 0;
+            overflow: hidden
+        }
+
+        .vase i {
+            display: block;
+            height: 100%;
+            background: #a78bfa;
+            transition: width .2s
+        }
+
+        .dpt td.cur {
+            background: #fde047;
+            color: #000;
+            font-weight: 800
+        }
+
+        .dpt td.pv {
+            background: #38bdf8;
+            color: #000
+        }
+
+        .dpt td.fin {
+            background: #22c55e;
+            color: #000;
+            font-weight: 800
+        }
+
+        .dpt td.path {
+            background: #166534;
+            color: #fff
+        }
+
+        .dpt small {
+            font-size: 9px;
+            opacity: .8
+        }
+
+        .lg {
+            opacity: .8;
+            font-size: 11px
+        }
+    </style>
+
+    <style id="calc-css">
+        .gcl {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            margin-top: 6px
+        }
+
+        .gcc {
+            font-style: normal;
+            font-size: 11px;
+            padding: 2px 7px;
+            border-radius: 999px;
+            background: #33204a
+        }
+
+        .gcc.ca {
+            background: #7c3aed
+        }
+
+        .gcc.re {
+            background: #15803d
+        }
+
+        .gcc.nb {
+            background: #0e7490
+        }
+
+        .gc-ca {
+            color: #c4b5fd
+        }
+
+        .gc-re {
+            color: #86efac
+        }
+
+        .srch {
+            margin-top: 14px;
+            padding: 10px 12px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, .05)
+        }
+    </style>
+    <script id="calc-js">
+        window.GCALC = (function () {
+            const st = { n: 15, res: null }; let el = null, opt = {};
+            function py(n) { try { return JSON.parse(pyodideInstance.runPython('fib_compare(' + n + ')')) } catch (e) { return null } }
+            const chips = (a, re) => a.map(x => re ? `<i class="gcc ${x[1] === 'reused' ? 're' : 'ca'}">${x[0]}</i>` : `<i class="gcc">${x}</i>`).join('');
+            function render() {
+                const r = st.res, n = st.n; if (!el) return;
+                el.innerHTML = `<p class="rn lab-note">🌻 <b>Flower Growth Calculator.</b> The petals of some flowers follow the Fibonacci sequence: fib(n) = fib(n−1) + fib(n−2). Plain recursion recalculates the same values again and again. <b>Memoization</b> saves each answer in a notebook the first time and reuses it.</p>${opt.question ? `<div class="lab-q">${opt.question}</div>` : ''}
+ <div class="rc"><label>Target n = <b id="gc-nv">${n}</b><input id="gc-n" type="range" min="5" max="25" value="${n}" ${opt.locked ? 'disabled' : ''} oninput="GCALC.setN(this.value)"></label><button onclick="GCALC.run()">▶ Calculate both ways</button></div>
+ ${r ? `<table class="rt"><tr><th></th><th>Without memoization</th><th>With memoization</th></tr><tr><td>fib(${r.n})</td><td>${r.plain}</td><td>${r.memo}</td></tr><tr><td>Recursive calls</td><td><b>${r.plain_calls.toLocaleString()}</b></td><td><b>${r.memo_calls}</b></td></tr></table>
+ <p class="rn ${r.same ? 'ok' : ''}">${r.same ? '✅ Both give the same correct answer.' : '❌ The answers differ!'} Memoization used <b>${Math.round(r.plain_calls / r.memo_calls).toLocaleString()}× fewer</b> calls.</p>
+ <div class="rn"><b>Plain recursion</b> (the first ${r.plain_log.length} of ${r.plain_calls.toLocaleString()} calls, in order):<div class="gcl">${chips(r.plain_log)}</div></div>
+ <div class="rn"><b>With memoization</b> (${r.memo_log.length < 40 ? 'all ' + r.memo_calls : 'first 40 of ' + r.memo_calls} calls: <span class="gc-ca">calculated</span> or <span class="gc-re">reused from the notebook</span>):<div class="gcl">${chips(r.memo_log, true)}</div></div>
+ <div class="rn"><b>📓 Memoization Notebook</b> (saved results):<div class="gcl">${r.notebook.map(x => `<i class="gcc nb">fib(${x[0]}) = ${x[1]}</i>`).join('')}</div></div>` : '<p class="rn">Choose n and press Calculate. The calls are counted by real Python recursion.</p>'}
+ <div id="gc-extra"></div>`; if (opt.onRender) opt.onRender(document.getElementById('gc-extra'), r)
+            }
+            return { mount(e, o) { el = e; opt = o || {}; st.n = opt.n || st.n; st.res = null; render() }, run() { st.res = py(st.n); render() }, setN(v) { st.n = +v; const b = document.getElementById('gc-nv'); if (b) b.textContent = v } }
+        })();
+    </script>
+    <style id="rd-css">
+        .dj-svg line.vis {
+            stroke: #60a5fa;
+            stroke-width: 7
+        }
+
+        .dj-svg line.cl {
+            stroke: #ef4444;
+            stroke-dasharray: 6 6;
+            stroke-width: 4
+        }
+
+        .dj-svg .node.go circle {
+            stroke: #fde047;
+            stroke-width: 5;
+            animation: pf-bob 1s ease-in-out infinite;
+            cursor: pointer
+        }
+
+        .dj-svg .node.go {
+            cursor: pointer
+        }
+
+        .alertq {
+            background: rgba(239, 68, 68, .18);
+            border: 1px solid #f87171
+        }
+    </style>
+
+    <div id="det-bar">
+        <div class="pb-top"><b>📡 Treasure detector</b><button type="button" id="dt-min">▾ Hide info</button></div><span
+            id="dt-info"><b>How it works:</b><br>1️⃣ A 💎 is buried in ONE plot of your garden today. The yellow box
+            shows where it could be.<br>2️⃣ The box is split into two halves: <b>A (blue)</b> and <b>B (pink)</b>. Press
+            a scan button: it tells you if the 💎 is in that half. Either way the search area shrinks to the half that
+            has it.<br>3️⃣ Keep scanning (each scan costs 4 Wh of sunlight) until ONE plot is left. Every scan cuts the
+            area in half. This is <b>divide and conquer</b>, like guessing a number.<br>4️⃣ Click that plot in the
+            garden, then press the <b>shovel (X)</b> to dig it up.</span>
+        <div id="dt-text" class="dt-text"></div>
+        <div class="pb-row"><button type="button" id="dt-a">📡 Scan A</button><button type="button" id="dt-b">📡 Scan
+                B</button><button type="button" id="dt-done">✔ Done</button></div>
+    </div>
+    <style id="det-css">
+        .ga-det {
+            background: #4338ca !important
+        }
+
+        .ga-det.on {
+            outline: 2px solid #a5b4fc
+        }
+
+        #det-bar {
+            display: none
+        }
+
+        body.garden-open #det-bar.open {
+            display: block;
+            position: fixed;
+            left: 14px;
+            bottom: 14px;
+            z-index: 9040;
+            width: min(520px, 94vw);
+            padding: 12px 14px;
+            border-radius: 16px;
+            background: rgba(36, 18, 56, .97);
+            border: 1px solid #a5b4fc;
+            color: #f6ecff;
+            box-shadow: 0 12px 34px rgba(0, 0, 0, .5);
+            font-size: 13px;
+            line-height: 1.5
+        }
+
+        #det-bar .pb-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px
+        }
+
+        #det-bar .pb-top button {
+            padding: 3px 10px;
+            border-radius: 8px;
+            border: 1px solid #6d4a96;
+            background: #33204a;
+            color: #e9d5ff;
+            font-size: 11px;
+            cursor: pointer
+        }
+
+        #det-bar #dt-info {
+            display: block;
+            margin: 4px 0 8px;
+            opacity: .9
+        }
+
+        #det-bar.min #dt-info {
+            display: none
+        }
+
+        .dt-text {
+            padding: 6px 10px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, .06);
+            margin-bottom: 8px;
+            font-weight: 700
+        }
+
+        #det-bar .pb-row {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap
+        }
+
+        #det-bar .pb-row button {
+            padding: 7px 12px;
+            border-radius: 9px;
+            border: 1px solid #c4b5fd;
+            background: #7c3aed;
+            color: #fff;
+            font-weight: 700;
+            font-size: 12px;
+            cursor: pointer
+        }
+
+        #det-bar .pb-row button:disabled {
+            opacity: .4;
+            cursor: not-allowed
+        }
+
+        #det-fx {
+            position: absolute;
+            inset: 0;
+            z-index: 26;
+            pointer-events: none;
+            overflow: hidden
+        }
+
+        #det-fx .rg {
+            position: absolute;
+            box-sizing: border-box
+        }
+
+        #det-fx .cur {
+            border: 3px solid #fde047;
+            box-shadow: 0 0 0 9999px rgba(8, 4, 20, .45)
+        }
+
+        #det-fx .ha {
+            border: 3px dashed #38bdf8;
+            background: rgba(56, 189, 248, .12)
+        }
+
+        #det-fx .hb {
+            border: 3px dashed #f472b6;
+            background: rgba(244, 114, 182, .12)
+        }
+
+        #det-fx .lb {
+            position: absolute;
+            top: 2px;
+            left: 4px;
+            font: 800 14px inherit;
+            color: #fff;
+            text-shadow: 0 1px 3px #000
+        }
+
+        #det-fx .one {
+            border: 3px solid #fde047;
+            animation: pf-bob 1s ease-in-out infinite;
+            background: rgba(253, 224, 71, .2)
+        }
+    </style>
+    <script id="det-js">
+        (function () {
+            const $ = i => document.getElementById(i), Rn = n => Math.floor(Math.random() * n), COLS = 5;
+            const D = { t: -1, region: null, scans: 0, found: false, rows: 5, mode: false }; window.DETECTOR = D;
+            const py = c => { try { return pyodideInstance.runPython(c) } catch (e) { return null } };
+            const rows = () => typeof GRID_ROWS !== 'undefined' ? GRID_ROWS : 5;
+            const tiles = () => [...document.querySelectorAll('#garden-grid>.garden-tile')];
+            function halves(r) { const [r0, r1, c0, c1] = r, h = r1 - r0 + 1, w = c1 - c0 + 1; if (w >= h && w > 1) { const m = c0 + Math.floor((w - 1) / 2); return { dir: 'col', a: [r0, r1, c0, m], b: [r0, r1, m + 1, c1] } } if (h > 1) { const m = r0 + Math.floor((h - 1) / 2); return { dir: 'row', a: [r0, m, c0, c1], b: [m + 1, r1, c0, c1] } } return null }
+            const area = r => (r[1] - r[0] + 1) * (r[3] - r[2] + 1);
+            function newTreasure() { const r = rows(), t = py('treasure_new(' + r + ',' + COLS + ')'); if (t === null || t === true) return false; Object.assign(D, { t, region: [0, r - 1, 0, COLS - 1], scans: 0, found: false, rows: r }); ui(); return true }
+            function ui() {
+                const text = $('dt-text'), a = $('dt-a'), b = $('dt-b'); if (!text || !D.region) { return }
+                const h = halves(D.region), n = area(D.region);
+                text.textContent = D.found ? '💎 Treasure collected today! A new one is buried tomorrow.' : n === 1 ? `🔔 The detector is going wild: the treasure is at row ${D.region[0] + 1}, column ${D.region[2] + 1}! Select that plot and dig with the shovel (X).` : `Search area: ${n} plots · scans used: ${D.scans}. Scan half A or half B.`;
+                const nm = h ? (h.dir === 'col' ? ['Left', 'Right'] : ['Top', 'Bottom']) : ['-', '-']; a.textContent = '📡 Scan A (' + nm[0] + ' half)'; b.textContent = '📡 Scan B (' + nm[1] + ' half)'; a.disabled = b.disabled = !h || D.found; draw()
+            }
+            function rect(r) { const ts = tiles(), st = $('garden-stage'); if (ts.length < rows() * COLS || !st) return null; const s = st.getBoundingClientRect(), A = ts[r[0] * COLS + r[2]].getBoundingClientRect(), B = ts[r[1] * COLS + r[3]].getBoundingClientRect(); return { l: A.left - s.left, t: A.top - s.top, w: B.right - A.left, h: B.bottom - A.top } }
+            function draw() {
+                const st = $('garden-stage'); if (!st) return; let fx = $('det-fx'); if (!fx) { fx = document.createElement('div'); fx.id = 'det-fx'; st.appendChild(fx) }
+                if (!D.mode || !D.region || D.found) { fx.innerHTML = ''; return } const cur = rect(D.region); if (!cur) { return } const h = halves(D.region), box = (c, r, cls, lab) => `<div class="rg ${cls}" style="left:${r.l}px;top:${r.t}px;width:${r.w}px;height:${r.h}px">${lab ? `<span class="lb">${lab}</span>` : ''}</div>`;
+                let html = ''; if (h) { html += box(0, cur, 'cur', ''); const A = rect(h.a), B = rect(h.b); html += box(0, A, 'ha', 'A') + box(0, B, 'hb', 'B') } else html += box(0, cur, 'one', '💎?');
+                if (fx.innerHTML !== html) fx.innerHTML = html
+            }
+            function scan(which) {
+                if (D.found || !D.region) return; const h = halves(D.region); if (!h) { ui(); return }
+                let ok = false; try { ok = !!pyodideInstance.runPython('t5_use_sun(4)') } catch (e) { } if (!ok) { showToast('☀️ The scanner needs 4 Wh of sunlight.'); return }
+                let r = null; try { r = JSON.parse(pyodideInstance.runPython('treasure_scan(' + JSON.stringify(JSON.stringify(D.region)) + ',' + D.t + ',' + COLS + ',' + which + ')')) } catch (e) { }
+                if (!r || r.done) { ui(); return } D.scans++; D.region = r.region; showToast(r.found ? '📡 Beep beep! The treasure IS in half ' + (which ? 'B' : 'A') + '.' : '📡 Silence… not in half ' + (which ? 'B' : 'A') + '. It must be in the other half.'); ui()
+            }
+            function mode(on) { D.mode = on; $('det-bar').classList.toggle('open', on); $('det-open').classList.toggle('on', on); if (on) { const pb = $('pipe-bar'); if (pb && pb.classList.contains('open')) { const d = $('pb-done'); d && d.click() } ui() } else draw() }
+            document.addEventListener('click', e => {
+                const t = e.target; if (t.closest && t.closest('#det-open')) mode(!D.mode); else if (t.id === 'dt-a') scan(0); else if (t.id === 'dt-b') scan(1); else if (t.id === 'dt-done') mode(false);
+                else if (t.id === 'dt-min') { const m = $('det-bar').classList.toggle('min'); t.textContent = m ? '▴ Show info' : '▾ Hide info' }
+            });
+            const oDig = window.digTile; window.digTile = function () {
+                const pos = py('-1 if t5_state["active_pos"] is None else t5_state["active_pos"]');
+                if (!D.found && D.t >= 0 && pos === D.t) {
+                    D.found = true; const c = 30 + Rn(21); try { pyodideInstance.runPython('t5_earn(' + c + ')'); pyodideInstance.runPython('t5_add_fert(2)') } catch (e) { }
+                    showToast('💎 You dug up the treasure! +' + c + ' coins and +2 fertilizer (' + D.scans + ' scans).'); if (window.sfx) sfx.bloom(); ui(); return
+                }
+                if (oDig) oDig()
+            };
+            const oNext = window.shopStartNextDay; window.shopStartNextDay = function () { oNext.apply(this, arguments); setTimeout(newTreasure, 1500) };
+            setInterval(() => { if (D.t < 0) { newTreasure(); return } if (rows() !== D.rows) { D.rows = rows(); D.region = [0, D.rows - 1, 0, COLS - 1]; ui() } if (D.mode) draw() }, 900);
         })();
     </script>
 </body>
